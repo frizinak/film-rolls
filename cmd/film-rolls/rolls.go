@@ -22,15 +22,17 @@ func exit(err error) {
 func main() {
 	var verbose bool
 	var output string
+	var id string
 	flag.BoolVar(&verbose, "v", false, "Be verbose.")
-	flag.StringVar(&output, "f", "text", "Output format: text or html")
+	flag.StringVar(&output, "f", "text", "Output format: text, html or tags")
+	flag.StringVar(&id, "id", "", "Only show film roll with the given id")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "%s <flags> [file]:\n", os.Args[0])
 		flag.PrintDefaults()
 	}
 	flag.Parse()
 
-	var run func(db *db.DB)
+	var run func(db *db.DB, id string)
 	switch output {
 	case "text":
 		w := 0
@@ -42,13 +44,18 @@ func main() {
 			w = 80
 		}
 
-		run = func(db *db.DB) { db.PrintTable(os.Stdout, w) }
+		run = func(db *db.DB, id string) { db.PrintTable(os.Stdout, w, id) }
 
 	case "html":
-		run = func(db *db.DB) {
+		run = func(db *db.DB, id string) {
 			fmt.Println(`<table class="film-rolls">`)
-			db.PrintHTMLTable(os.Stdout)
+			db.PrintHTMLTable(os.Stdout, id)
 			fmt.Println(`</table>`)
+		}
+
+	case "tags":
+		run = func(db *db.DB, id string) {
+			db.PrintTags(os.Stdout, id)
 		}
 
 	default:
@@ -72,7 +79,7 @@ func main() {
 	f.Close()
 	exit(err)
 
-	run(db)
+	run(db, id)
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, time.Since(bench))

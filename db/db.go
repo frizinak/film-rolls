@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/frizinak/film-rolls/table"
@@ -88,14 +89,19 @@ type Entry struct {
 
 	Scan uint
 
+	Line uint
+
 	Note string
 }
 
-func (e Entry) ID() string {
+func (e Entry) ID(i int) string {
 	h := sha512.New()
 	fmt.Fprintln(h, e.LoadDate.Format(dateFormat))
 	fmt.Fprintln(h, e.Camera.ID)
 	fmt.Fprintln(h, e.Stock.ID)
+	if i != 0 {
+		fmt.Fprintln(h, i)
+	}
 
 	b := h.Sum(nil)
 	return hex.EncodeToString(b)
@@ -123,10 +129,39 @@ type DB struct {
 	Labs      map[ID]*Lab
 }
 
-func (db *DB) PrintHTMLTable(w io.Writer) {
-	t := table.New()
+func (db *DB) row(idFilter string, row func(e Entry, id string, active bool)) {
 	ids := make(map[string]struct{})
 	loaded := make(map[ID]int)
+	for i, e := range db.Entries {
+		if e.Lab == nil {
+			loaded[e.Camera.ID] = i
+		}
+	}
+
+	for i, e := range db.Entries {
+		var id string
+		const n = 5
+		try := 0
+		for {
+			id = e.ID(try)[:n]
+			if _, ok := ids[id]; !ok {
+				break
+			}
+			try++
+		}
+
+		ids[id] = struct{}{}
+
+		if idFilter != "" && id != idFilter {
+			continue
+		}
+
+		row(e, id, loaded[e.Camera.ID] == i)
+	}
+}
+
+func (db *DB) PrintHTMLTable(w io.Writer, idFilter string) {
+	t := table.New()
 	tr := table.ColFixed(table.Str("<tr>"))
 	tre := table.ColFixed(table.Str("</tr>"))
 	td := table.ColFixed(table.Str("<td>"))
@@ -137,34 +172,17 @@ func (db *DB) PrintHTMLTable(w io.Writer) {
 		t.AddCol(tde)
 	}
 
-	for i, e := range db.Entries {
-		if e.Lab == nil {
-			loaded[e.Camera.ID] = i
-		}
-	}
-
-	for i, e := range db.Entries {
+	db.row(idFilter, func(e Entry, id string, active bool) {
 		t.NewRow()
 		t.AddCol(tr)
 
 		addCol(table.ColFixed(table.Str(e.LoadDate.Format(dateFormat))))
 
-		id := e.ID()
-		var idstr string
-		n := 4
-		for {
-			idstr = id[0:n]
-			if _, ok := ids[idstr]; !ok {
-				break
-			}
-			n++
-		}
-		ids[idstr] = struct{}{}
-		addCol(table.ColFixed(table.Str(idstr)))
+		addCol(table.ColFixed(table.Str(id)))
 
 		addCol(table.ColFixed(table.Str(e.Camera.ID.String())))
 		camPrefix, camSuffix := "", ""
-		if loaded[e.Camera.ID] == i {
+		if active {
 			camPrefix = `<span class="active">`
 			camSuffix = `</span>`
 		}
@@ -201,47 +219,28 @@ func (db *DB) PrintHTMLTable(w io.Writer) {
 		addCol(table.ColFixed(table.Str(e.Note)))
 
 		t.AddCol(tre)
-	}
+	})
 
 	t.WriteTo(w, "")
 }
 
-func (db *DB) PrintTable(w io.Writer, width int) {
+func (db *DB) PrintTable(w io.Writer, width int, idFilter string) {
 	t := table.New()
 	space := table.TermStr(" ")
 	line := table.TermStr(" \u2502 ")
-	ids := make(map[string]struct{})
-	loaded := make(map[ID]int)
 
-	for i, e := range db.Entries {
-		if e.Lab == nil {
-			loaded[e.Camera.ID] = i
-		}
-	}
-
-	for i, e := range db.Entries {
+	db.row(idFilter, func(e Entry, id string, active bool) {
 		t.NewRow()
 		t.AddCol(table.ColFixed(table.TermStr(e.LoadDate.Format(dateFormat))))
 		t.AddCol(table.ColFixed(line))
 
-		id := e.ID()
-		var idstr string
-		n := 4
-		for {
-			idstr = id[0:n]
-			if _, ok := ids[idstr]; !ok {
-				break
-			}
-			n++
-		}
-		ids[idstr] = struct{}{}
-		t.AddCol(table.ColFixed(table.TermStr(idstr)))
+		t.AddCol(table.ColFixed(table.TermStr(id)))
 		t.AddCol(table.ColFixed(line))
 
 		t.AddCol(table.ColFixed(table.ColPreSuf(table.TermStr(e.Camera.ID.String()), "\033[38;5;244m", "\033[0m")))
 		t.AddCol(table.ColFixed(space))
 		camPrefix, camSuffix := "", ""
-		if loaded[e.Camera.ID] == i {
+		if active {
 			camPrefix = "\033[31m"
 			camSuffix = "\033[0m"
 		}
@@ -286,16 +285,43 @@ func (db *DB) PrintTable(w io.Writer, width int) {
 		}
 		t.AddCol(table.ColFixed(table.TermStr(scan)))
 		t.AddCol(table.ColFixed(line))
+		t.AddCol(table.ColFixed(table.TermStr(fmt.Sprintf("%d", e.Line))))
+		t.AddCol(table.ColFixed(line))
 		t.AddCol(table.TermStr(e.Note))
-	}
+	})
 	if width != 0 {
 		t.SetFixedWidth(width)
 	}
 	t.WriteTo(w, "")
 }
 
+func (db *DB) PrintTags(w io.Writer, idFilter string) {
+	r := strings.NewReplacer(" ", "_")
+	clean := func(str string) string {
+		return strings.ToLower(r.Replace(str))
+	}
+
+	list := make([]string, 0, 6)
+	db.row(idFilter, func(e Entry, id string, active bool) {
+		list = list[:0]
+		list = append(list, fmt.Sprintf("id:%s", id))
+		list = append(list, fmt.Sprintf("camera:%s-%s", clean(e.Camera.Brand), clean(e.Camera.Model)))
+		list = append(list, fmt.Sprintf("film:%s-%s", clean(e.Stock.Company.Name), clean(e.Stock.Name)))
+		list = append(list, fmt.Sprintf("iso:%s", clean(e.Stock.ISO.String())))
+		if e.Lab != nil {
+			list = append(list, fmt.Sprintf("lab:%s", clean(e.Lab.Name)))
+		}
+		if e.Scan != 0 {
+			list = append(list, fmt.Sprintf("scan:%04d", e.Scan))
+		}
+		list = append(list, fmt.Sprintf("line:%d", e.Line))
+
+		fmt.Fprintln(w, strings.Join(list, " "))
+	})
+}
+
 func (db *DB) String() string {
 	buf := bytes.NewBuffer(nil)
-	db.PrintTable(buf, 0)
+	db.PrintTable(buf, 0, "")
 	return buf.String()
 }

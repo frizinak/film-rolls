@@ -36,7 +36,9 @@ func Parse(r io.Reader) (*DB, error) {
 	s := bufio.NewScanner(r)
 	s.Split(bufio.ScanLines)
 	var keyword string
+	var line uint
 	for s.Scan() {
+		line++
 		t := strings.TrimSpace(s.Text())
 		if t == "" {
 			keyword = keywordNone
@@ -135,7 +137,7 @@ func Parse(r io.Reader) (*DB, error) {
 			if len(p) < 3 {
 				return db, fmt.Errorf("invalid entry: '%s'", t)
 			}
-			e := Entry{LoadDate: d}
+			e := Entry{LoadDate: d, Line: line}
 			sid, err := MkID(p[1])
 			if err != nil {
 				return db, err
