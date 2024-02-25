@@ -2,10 +2,13 @@ package db
 
 import (
 	"bytes"
+	"cmp"
 	"crypto/sha512"
 	"encoding/hex"
 	"fmt"
 	"io"
+	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -30,6 +33,7 @@ type Stock struct {
 	Company *Company
 	Name    string
 	ISO     ISO
+	Rolls   int
 }
 
 func (s *Stock) String() string {
@@ -56,11 +60,23 @@ type Lab struct {
 	Name string
 }
 
+func LabNone() *Lab { return &Lab{ID0(), ""} }
+
 func (l *Lab) String() string {
+	if l.None() {
+		return "[N/A]"
+	}
+
 	return fmt.Sprintf("[%s] %s", l.ID, l.Name)
 }
 
+func (l *Lab) None() bool {
+	return l == nil || l.ID == ID0()
+}
+
 type ID [3]byte
+
+func ID0() ID { return ID{0, 0, 0} }
 
 func (id ID) String() string { return fmt.Sprintf("[%s]", id[:]) }
 
@@ -160,117 +176,114 @@ func (db *DB) row(idFilter string, row func(e Entry, id string, active bool)) {
 	}
 }
 
-func (db *DB) PrintHTMLTable(w io.Writer, idFilter string) {
-	t := table.New()
-	tr := table.ColFixed(table.Str("<tr>"))
-	tre := table.ColFixed(table.Str("</tr>"))
-	td := table.ColFixed(table.Str("<td>"))
-	tde := table.ColFixed(table.Str("</td>"))
-	addCol := func(col table.Col) {
-		t.AddCol(td)
-		t.AddCol(col)
-		t.AddCol(tde)
-	}
+type TableConfig struct {
+	IDFilter string
 
-	db.row(idFilter, func(e Entry, id string, active bool) {
-		t.NewRow()
-		t.AddCol(tr)
+	Color  bool
+	Pretty bool
 
-		addCol(table.ColFixed(table.Str(e.LoadDate.Format(dateFormat))))
+	Header                bool
+	HeaderSep             bool
+	Separator             string
+	StartEndWithSeperator bool
 
-		addCol(table.ColFixed(table.Str(id)))
-
-		addCol(table.ColFixed(table.Str(e.Camera.ID.String())))
-		camPrefix, camSuffix := "", ""
-		if active {
-			camPrefix = `<span class="active">`
-			camSuffix = `</span>`
-		}
-		addCol(table.ColFixed(table.ColPreSuf(table.Str(e.Camera.Brand), camPrefix, camSuffix)))
-		addCol(table.ColFixed(table.ColPreSuf(table.Str(e.Camera.Model), camPrefix, camSuffix)))
-
-		addCol(table.ColFixed(table.Str(e.Stock.ID.String())))
-		addCol(table.ColFixed(table.Str(e.Stock.Company.Name)))
-		addCol(table.ColFixed(table.Str(e.Stock.Name)))
-		addCol(table.ColFixed(table.Str(e.Stock.ISO.String())))
-
-		var labName, labInDate, labOutDate string
-		labID := "[N/A]"
-		if e.Lab != nil {
-			labID = e.Lab.ID.String()
-			labName = e.Lab.Name
-			if e.LabInDate != (time.Time{}) {
-				labInDate = e.LabInDate.Format(dateFormat)
-			}
-			if e.LabOutDate != (time.Time{}) {
-				labOutDate = e.LabOutDate.Format(dateFormat)
-			}
-		}
-		addCol(table.ColFixed(table.Str(labID)))
-		addCol(table.ColFixed(table.Str(labName)))
-		addCol(table.ColFixed(table.Str(labInDate)))
-		addCol(table.ColFixed(table.Str(labOutDate)))
-
-		scan := ""
-		if e.Scan != 0 {
-			scan = fmt.Sprintf("%04d", e.Scan)
-		}
-		addCol(table.ColFixed(table.TermStr(scan)))
-		addCol(table.ColFixed(table.Str(e.Note)))
-
-		t.AddCol(tre)
-	})
-
-	t.WriteTo(w, "")
+	Width int
 }
 
-func (db *DB) PrintTable(w io.Writer, width int, idFilter string) {
+var defaultConf = TableConfig{
+	Separator: " \u2502 ",
+}
+
+func TableConfigDefault() TableConfig { return defaultConf }
+
+func (db *DB) PrintTable(w io.Writer, conf TableConfig) {
 	t := table.New()
 	space := table.TermStr(" ")
-	line := table.TermStr(" \u2502 ")
+	line := table.TermStr(conf.Separator)
+	lline := table.TermStr(strings.TrimLeft(conf.Separator, " "))
+	rline := table.TermStr(strings.TrimRight(conf.Separator, " "))
 
-	db.row(idFilter, func(e Entry, id string, active bool) {
+	if !conf.Pretty {
+		space = line
+	}
+
+	clr := func(seq string) string {
+		if conf.Color {
+			return seq
+		}
+		return ""
+	}
+
+	row := func(
+		active bool,
+		activeString,
+		id,
+		date,
+		cameraID, cameraBrand, cameraModel,
+		stockID, stockName, stockISO, stockCompany,
+		labID, labName, labInDate, labOutDate,
+		scan, note, linenr string,
+	) {
 		t.NewRow()
-		t.AddCol(table.ColFixed(table.TermStr(e.LoadDate.Format(dateFormat))))
+		if conf.StartEndWithSeperator {
+			t.AddCol(table.ColFixed(lline))
+		}
+
+		t.AddCol(table.ColFixed(table.TermStr(date)))
 		t.AddCol(table.ColFixed(line))
 
 		t.AddCol(table.ColFixed(table.TermStr(id)))
 		t.AddCol(table.ColFixed(line))
 
-		t.AddCol(table.ColFixed(table.ColPreSuf(table.TermStr(e.Camera.ID.String()), "\033[38;5;244m", "\033[0m")))
+		t.AddCol(table.ColFixed(table.ColPreSuf(
+			table.TermStr(cameraID),
+			clr("\033[38;5;244m"),
+			clr("\033[0m"),
+		)))
+
 		t.AddCol(table.ColFixed(space))
 		camPrefix, camSuffix := "", ""
-		if active {
+		if active && conf.Color {
 			camPrefix = "\033[31m"
 			camSuffix = "\033[0m"
 		}
-		t.AddCol(table.ColFixed(table.ColPreSuf(table.TermStr(e.Camera.Brand), camPrefix, camSuffix)))
+
+		t.AddCol(table.ColFixed(table.ColPreSuf(table.TermStr(cameraBrand), camPrefix, camSuffix)))
 		t.AddCol(table.ColFixed(space))
-		t.AddCol(table.ColFixed(table.ColPreSuf(table.TermStr(e.Camera.Model), camPrefix, camSuffix)))
+		t.AddCol(table.ColFixed(table.ColPreSuf(table.TermStr(cameraModel), camPrefix, camSuffix)))
 		t.AddCol(table.ColFixed(line))
 
-		t.AddCol(table.ColFixed(table.ColPreSuf(table.TermStr(e.Stock.ID.String()), "\033[38;5;244m", "\033[0m")))
-		t.AddCol(table.ColFixed(space))
-		t.AddCol(table.ColFixed(table.ColPreSuf(table.TermStr(e.Stock.Company.Name), "\033[32m", "\033[0m")))
-		t.AddCol(table.ColFixed(space))
-		t.AddCol(table.ColFixed(table.ColPreSuf(table.TermStr(e.Stock.Name), "\033[32m", "\033[0m")))
-		t.AddCol(table.ColFixed(space))
-		t.AddCol(table.ColAlignRight(table.ColFixed(table.TermStr(e.Stock.ISO.String()))))
-		t.AddCol(table.ColFixed(line))
-
-		var labName, labInDate, labOutDate string
-		labID := "[N/A]"
-		if e.Lab != nil {
-			labID = e.Lab.ID.String()
-			labName = e.Lab.Name
-			if e.LabInDate != (time.Time{}) {
-				labInDate = e.LabInDate.Format(dateFormat)
-			}
-			if e.LabOutDate != (time.Time{}) {
-				labOutDate = e.LabOutDate.Format(dateFormat)
-			}
+		if !conf.Color {
+			t.AddCol(table.ColFixed(table.TermStr(activeString)))
+			t.AddCol(table.ColFixed(line))
 		}
-		t.AddCol(table.ColFixed(table.ColPreSuf(table.TermStr(labID), "\033[38;5;244m", "\033[0m")))
+
+		t.AddCol(table.ColFixed(table.ColPreSuf(
+			table.TermStr(stockID),
+			clr("\033[38;5;244m"),
+			clr("\033[0m"),
+		)))
+		t.AddCol(table.ColFixed(space))
+		t.AddCol(table.ColFixed(table.ColPreSuf(
+			table.TermStr(stockCompany),
+			clr("\033[32m"),
+			clr("\033[0m"),
+		)))
+		t.AddCol(table.ColFixed(space))
+		t.AddCol(table.ColFixed(table.ColPreSuf(
+			table.TermStr(stockName),
+			clr("\033[32m"),
+			clr("\033[0m"),
+		)))
+		t.AddCol(table.ColFixed(space))
+		t.AddCol(table.ColAlignRight(table.ColFixed(table.TermStr(stockISO))))
+		t.AddCol(table.ColFixed(line))
+
+		t.AddCol(table.ColFixed(table.ColPreSuf(
+			table.TermStr(labID),
+			clr("\033[38;5;244m"),
+			clr("\033[0m"),
+		)))
 		t.AddCol(table.ColFixed(space))
 		t.AddCol(table.ColFixed(table.TermStr(labName)))
 		t.AddCol(table.ColFixed(space))
@@ -279,18 +292,78 @@ func (db *DB) PrintTable(w io.Writer, width int, idFilter string) {
 		t.AddCol(table.ColFixed(table.TermStr(labOutDate)))
 		t.AddCol(table.ColFixed(line))
 
+		t.AddCol(table.ColFixed(table.TermStr(scan)))
+		t.AddCol(table.ColFixed(line))
+		t.AddCol(table.ColFixed(table.TermStr(linenr)))
+		t.AddCol(table.ColFixed(line))
+		t.AddCol(table.TermStr(note))
+
+		if conf.StartEndWithSeperator {
+			t.AddCol(table.ColFixed(rline))
+		}
+	}
+
+	if conf.Header {
+		row(
+			false,
+			"Active",
+			"ID",
+			"Date",
+			"[CID]", "Brand", "Model",
+			"[SID]", "Stock", "ISO", "Manufacturer",
+			"[LID]", "Lab Name", "Lab in", "Lab out",
+			"Scan", "Note", "Line",
+		)
+	}
+
+	if conf.HeaderSep {
+		hs := ":---"
+		row(
+			false,
+			hs,
+			hs,
+			hs,
+			hs, hs, hs,
+			hs, hs, hs, hs,
+			hs, hs, hs, hs,
+			hs, hs, hs,
+		)
+	}
+
+	db.row(conf.IDFilter, func(e Entry, id string, active bool) {
+		var labName, labInDate, labOutDate string
+		labID := "[N/A]"
+		if !e.Lab.None() {
+			labID = e.Lab.ID.String()
+			labName = e.Lab.Name
+			if e.LabInDate != (time.Time{}) {
+				labInDate = e.LabInDate.Format(dateFormat)
+			}
+			if e.LabOutDate != (time.Time{}) {
+				labOutDate = e.LabOutDate.Format(dateFormat)
+			}
+		}
 		scan := ""
 		if e.Scan != 0 {
 			scan = fmt.Sprintf("%04d", e.Scan)
 		}
-		t.AddCol(table.ColFixed(table.TermStr(scan)))
-		t.AddCol(table.ColFixed(line))
-		t.AddCol(table.ColFixed(table.TermStr(fmt.Sprintf("%d", e.Line))))
-		t.AddCol(table.ColFixed(line))
-		t.AddCol(table.TermStr(e.Note))
+		activeString := " "
+		if active {
+			activeString = "1"
+		}
+		row(
+			active,
+			activeString,
+			id,
+			e.LoadDate.Format(dateFormat),
+			e.Camera.ID.String(), e.Camera.Brand, e.Camera.Model,
+			e.Stock.ID.String(), e.Stock.Name, e.Stock.ISO.String(), e.Stock.Company.Name,
+			labID, labName, labInDate, labOutDate,
+			scan, e.Note, fmt.Sprintf("%d", e.Line),
+		)
 	})
-	if width != 0 {
-		t.SetFixedWidth(width)
+	if conf.Width != 0 {
+		t.SetFixedWidth(conf.Width)
 	}
 	t.WriteTo(w, "")
 }
@@ -308,7 +381,7 @@ func (db *DB) PrintTags(w io.Writer, idFilter string) {
 		list = append(list, fmt.Sprintf("camera:%s-%s", clean(e.Camera.Brand), clean(e.Camera.Model)))
 		list = append(list, fmt.Sprintf("film:%s-%s", clean(e.Stock.Company.Name), clean(e.Stock.Name)))
 		list = append(list, fmt.Sprintf("iso:%s", clean(e.Stock.ISO.String())))
-		if e.Lab != nil {
+		if !e.Lab.None() {
 			list = append(list, fmt.Sprintf("lab:%s", clean(e.Lab.Name)))
 		}
 		if e.Scan != 0 {
@@ -320,8 +393,103 @@ func (db *DB) PrintTags(w io.Writer, idFilter string) {
 	})
 }
 
+func (db *DB) PrintStock(w io.Writer, conf TableConfig) {
+	t := table.New()
+	space := table.TermStr(" ")
+	line := table.TermStr(conf.Separator)
+	lline := table.TermStr(strings.TrimLeft(conf.Separator, " "))
+	rline := table.TermStr(strings.TrimRight(conf.Separator, " "))
+
+	if !conf.Pretty {
+		space = line
+	}
+
+	row := func(
+		available, shot, total,
+		stockID, stockName, stockISO, stockCompany string,
+	) {
+		t.NewRow()
+
+		if conf.StartEndWithSeperator {
+			t.AddCol(table.ColFixed(lline))
+		}
+
+		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(available))))
+		t.AddCol(table.ColFixed(line))
+
+		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(shot))))
+		t.AddCol(table.ColFixed(line))
+
+		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(total))))
+		t.AddCol(table.ColFixed(line))
+
+		t.AddCol(table.ColFixed(table.TermStr(stockID)))
+		t.AddCol(table.ColFixed(space))
+		t.AddCol(table.ColFixed(table.TermStr(stockCompany)))
+		t.AddCol(table.ColFixed(space))
+		t.AddCol(table.ColFixed(table.TermStr(stockName)))
+		t.AddCol(table.ColFixed(space))
+		t.AddCol(table.ColFixed(table.TermStr(stockISO)))
+
+		if conf.StartEndWithSeperator {
+			t.AddCol(table.ColFixed(rline))
+		}
+	}
+
+	if conf.Header {
+		row("Avail", "Shot", "Total", "SID", "Stock", "ISO", "Manufacturer")
+	}
+	if conf.HeaderSep {
+		hs := ":---"
+		hsr := "---:"
+		row(hsr, hsr, hsr, hs, hs, hs, hs)
+	}
+
+	type s struct {
+		*Stock
+		Rolls int
+	}
+
+	sorted := make([]*s, 0, len(db.Stocks))
+	{
+		l := make(map[ID]*s, len(db.Stocks))
+		for id, stock := range db.Stocks {
+			l[id] = &s{stock, stock.Rolls}
+		}
+
+		for _, e := range db.Entries {
+			l[e.Stock.ID].Rolls--
+		}
+
+		for _, stock := range l {
+			sorted = append(sorted, stock)
+		}
+
+		slices.SortFunc(sorted, func(i, j *s) int {
+			return cmp.Compare(i.Name, j.Name)
+		})
+	}
+
+	for _, stock := range sorted {
+		row(
+			strconv.Itoa(stock.Rolls),
+			strconv.Itoa(stock.Stock.Rolls-stock.Rolls),
+			strconv.Itoa(stock.Stock.Rolls),
+			stock.Stock.ID.String(),
+			stock.Stock.Name,
+			stock.Stock.ISO.String(),
+			stock.Stock.Company.Name,
+		)
+	}
+
+	if conf.Width != 0 {
+		t.SetFixedWidth(conf.Width)
+	}
+	t.WriteTo(w, "")
+}
+
 func (db *DB) String() string {
 	buf := bytes.NewBuffer(nil)
-	db.PrintTable(buf, 0, "")
+	db.PrintTable(buf, defaultConf)
 	return buf.String()
 }

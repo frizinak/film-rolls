@@ -20,6 +20,7 @@ Stock [stock-id]
     [name]
     [company-id]
     [iso range]
+    [#rolls]
 ```
 
 Camera
@@ -40,6 +41,18 @@ Lab [lab-id]
 Film just loaded in camera:
 ```
 [loaded-in-camera-date] [stock-id] [camera-id]
+    [notes]
+```
+
+Film just removed from camera:
+```
+[loaded-in-camera-date] [stock-id] [camera-id] -
+    [notes]
+```
+
+Film delivered to lab:
+```
+[loaded-in-camera-date] [stock-id] [camera-id] [lab-id] [lab-in-date]
     [notes]
 ```
 
@@ -69,46 +82,55 @@ Stock C92
     Lomochrome Color '92
     LOM
     400
+    20 + 5 + 6
 
 Stock TRQ
     Lomochrome Turquoise
     LOM
     100 400
+    3
 
 Stock MTR
     Lomochrome Metropolis
     LOM
     100 400
+    8
 
 Stock PUR
     Lomochrome Purple XR
     LOM
     100 400
+    1
 
 Stock RSC
     Redscale XR
     LOM
     50-200
+    5
 
 Stock LGR
     Lady Grey
     LOM
     400
+    20
 
 Stock VTF
     Vision3 250D
     KOD
     250
+    8
 
 Stock 200
     200
     FUJ
     200
+    8 + 6 + 6
 
 Stock XTR
     Superia X-Tra
     FUJ
     400
+    8 + 6 + 6
 
 Camera OM1
     Olympus
