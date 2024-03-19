@@ -33,15 +33,16 @@ type Stock struct {
 	Company *Company
 	Name    string
 	ISO     ISO
+	Format  string
 	Rolls   int
 }
 
 func (s *Stock) String() string {
-	return fmt.Sprintf("[%s] %s - %s %s", s.ID, s.Company.Short(), s.Name, s.ISO)
+	return fmt.Sprintf("[%s] %s - %s %s %s", s.ID, s.Company.Short(), s.Name, s.Format, s.ISO)
 }
 
 func (s *Stock) Short() string {
-	return fmt.Sprintf("%s - %s %s", s.Company.Short(), s.Name, s.ISO)
+	return fmt.Sprintf("%s - %s %s %s", s.Company.Short(), s.Name, s.Format, s.ISO)
 }
 
 type ISO struct {
@@ -220,7 +221,7 @@ func (db *DB) PrintTable(w io.Writer, conf TableConfig) {
 		id,
 		date,
 		cameraID, cameraBrand, cameraModel,
-		stockID, stockName, stockISO, stockCompany,
+		stockID, stockName, stockFormat, stockISO, stockCompany,
 		labID, labName, labInDate, labOutDate,
 		scan, note, linenr string,
 	) {
@@ -276,6 +277,8 @@ func (db *DB) PrintTable(w io.Writer, conf TableConfig) {
 			clr("\033[0m"),
 		)))
 		t.AddCol(table.ColFixed(space))
+		t.AddCol(table.ColAlignRight(table.ColFixed(table.TermStr(stockFormat))))
+		t.AddCol(table.ColFixed(space))
 		t.AddCol(table.ColAlignRight(table.ColFixed(table.TermStr(stockISO))))
 		t.AddCol(table.ColFixed(line))
 
@@ -310,7 +313,7 @@ func (db *DB) PrintTable(w io.Writer, conf TableConfig) {
 			"ID",
 			"Date",
 			"[CID]", "Brand", "Model",
-			"[SID]", "Stock", "ISO", "Manufacturer",
+			"[SID]", "Stock", "Format", "ISO", "Manufacturer",
 			"[LID]", "Lab Name", "Lab in", "Lab out",
 			"Scan", "Note", "Line",
 		)
@@ -324,7 +327,7 @@ func (db *DB) PrintTable(w io.Writer, conf TableConfig) {
 			hs,
 			hs,
 			hs, hs, hs,
-			hs, hs, hs, hs,
+			hs, hs, hs, hs, hs,
 			hs, hs, hs, hs,
 			hs, hs, hs,
 		)
@@ -357,7 +360,7 @@ func (db *DB) PrintTable(w io.Writer, conf TableConfig) {
 			id,
 			e.LoadDate.Format(dateFormat),
 			e.Camera.ID.String(), e.Camera.Brand, e.Camera.Model,
-			e.Stock.ID.String(), e.Stock.Name, e.Stock.ISO.String(), e.Stock.Company.Name,
+			e.Stock.ID.String(), e.Stock.Name, e.Stock.Format, e.Stock.ISO.String(), e.Stock.Company.Name,
 			labID, labName, labInDate, labOutDate,
 			scan, e.Note, fmt.Sprintf("%d", e.Line),
 		)
@@ -406,7 +409,7 @@ func (db *DB) PrintStock(w io.Writer, conf TableConfig) {
 
 	row := func(
 		available, shot, total,
-		stockID, stockName, stockISO, stockCompany,
+		stockID, stockName, stockFormat, stockISO, stockCompany,
 		camera string,
 	) {
 		t.NewRow()
@@ -430,6 +433,8 @@ func (db *DB) PrintStock(w io.Writer, conf TableConfig) {
 		t.AddCol(table.ColFixed(space))
 		t.AddCol(table.ColFixed(table.TermStr(stockName)))
 		t.AddCol(table.ColFixed(space))
+		t.AddCol(table.ColFixed(table.TermStr(stockFormat)))
+		t.AddCol(table.ColFixed(space))
 		t.AddCol(table.ColFixed(table.TermStr(stockISO)))
 		t.AddCol(table.ColFixed(line))
 		t.AddCol(table.ColFixed(table.TermStr(camera)))
@@ -440,12 +445,12 @@ func (db *DB) PrintStock(w io.Writer, conf TableConfig) {
 	}
 
 	if conf.Header {
-		row("Avail", "Shot", "Total", "SID", "Stock", "ISO", "Manufacturer", "Camera")
+		row("Avail", "Shot", "Total", "SID", "Stock", "Format", "ISO", "Manufacturer", "Camera")
 	}
 	if conf.HeaderSep {
 		hs := ":---"
 		hsr := "---:"
-		row(hsr, hsr, hsr, hs, hs, hs, hs, hs)
+		row(hsr, hsr, hsr, hs, hs, hs, hs, hs, hs)
 	}
 
 	type s struct {
@@ -488,6 +493,7 @@ func (db *DB) PrintStock(w io.Writer, conf TableConfig) {
 			strconv.Itoa(stock.Stock.Rolls),
 			stock.Stock.ID.String(),
 			stock.Stock.Name,
+			stock.Stock.Format,
 			stock.Stock.ISO.String(),
 			stock.Stock.Company.Name,
 			cam,

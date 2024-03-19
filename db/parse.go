@@ -63,7 +63,9 @@ func Parse(r io.Reader) (*DB, error) {
 			if !ok {
 				return db, fmt.Errorf("no stock with id %s", lastID)
 			}
-			if s.Name == "" {
+			if s.Format == "" {
+				s.Format = t
+			} else if s.Name == "" {
 				s.Name = t
 			} else if s.Company == nil {
 				cid, err := MkID(t)

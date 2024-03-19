@@ -17,6 +17,7 @@ Company [company-id]
 Film stock
 ```
 Stock [stock-id]
+    [format]
     [name]
     [company-id]
     [iso range]
@@ -79,54 +80,63 @@ Company LOM
     Lomography
 
 Stock C92
+    135
     Lomochrome Color '92
     LOM
     400
     20 + 5 + 6
 
 Stock TRQ
+    135
     Lomochrome Turquoise
     LOM
     100 400
     3
 
 Stock MTR
+    135
     Lomochrome Metropolis
     LOM
     100 400
     8
 
 Stock PUR
+    135
     Lomochrome Purple XR
     LOM
     100 400
     1
 
 Stock RSC
+    135
     Redscale XR
     LOM
     50-200
     5
 
 Stock LGR
+    135
     Lady Grey
     LOM
     400
     20
 
 Stock VTF
+    135
     Vision3 250D
     KOD
     250
     8
 
 Stock 200
+    135
     200
     FUJ
     200
     8 + 6 + 6
 
 Stock XTR
+    135
     Superia X-Tra
     FUJ
     400
