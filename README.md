@@ -4,8 +4,6 @@ A way to record the history of film rolls passing through your camera(s).
 
 ## Format
 
-id = 3 char ascii
-
 ### Definitions
 
 Company

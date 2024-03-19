@@ -75,11 +75,11 @@ func (l *Lab) None() bool {
 	return l == nil || l.ID == ID0()
 }
 
-type ID [3]byte
+type ID string
 
-func ID0() ID { return ID{0, 0, 0} }
+func ID0() ID { return "" }
 
-func (id ID) String() string { return fmt.Sprintf("[%s]", id[:]) }
+func (id ID) String() string { return fmt.Sprintf("[%s]", string(id)) }
 
 type Camera struct {
 	ID    ID
@@ -124,17 +124,10 @@ func (e Entry) ID(i int) string {
 	return hex.EncodeToString(b)
 }
 
-func MkID(str string) (id ID, err error) {
-	if len(str) != 3 {
-		err = fmt.Errorf("invalid id: '%s'", str)
-		return
-	}
-
-	for i := range str {
-		id[i] = str[i]
-	}
-
-	return
+func MkID(str string) (ID, error) {
+	b := make([]byte, len(str))
+	copy(b, str)
+	return ID(b), nil
 }
 
 type DB struct {
