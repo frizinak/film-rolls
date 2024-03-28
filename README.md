@@ -35,6 +35,14 @@ Lab [lab-id]
     [name]
 ```
 
+Store
+```
+Store [store-id]
+    [name]
+    [stock-id] [amount] [price]
+    [stock-id] [amount] [price]
+    ...
+
 ### Log
 
 Film just loaded in camera:

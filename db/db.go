@@ -15,9 +15,106 @@ import (
 	"github.com/frizinak/film-rolls/table"
 )
 
+type Filter struct {
+	ID  string
+	LID string
+	SID string
+	CID string
+
+	Scan string
+
+	StatusUndev bool
+	StatusDev   bool
+	StatusLab   bool
+}
+
+type idable interface {
+	IDString() string
+}
+
+func (f Filter) Match(id string, e Entry) bool {
+	notl := func(s []string, val string) bool {
+		if len(s) == 0 || (len(s) == 1 && s[0] == "") {
+			return false
+		}
+		if val == "" {
+			return true
+		}
+		for _, v := range s {
+			if val == v {
+				return false
+			}
+		}
+		return true
+	}
+
+	not := func(s, val string) bool {
+		return notl(strings.Split(s, ","), val)
+	}
+
+	gID := func(i idable) string {
+		if i == nil {
+			return ""
+		}
+		return i.IDString()
+	}
+
+	scan := make([]string, 0, 1)
+	for _, v := range strings.Split(f.Scan, ",") {
+		scan = append(scan, strings.TrimLeft(v, "0"))
+	}
+
+	eScan := ""
+	if e.Scan != 0 {
+		eScan = strconv.FormatUint(uint64(e.Scan), 10)
+	}
+
+	switch {
+	case f.ID != "" && not(f.ID, id):
+		return false
+	case not(f.LID, gID(e.Lab)):
+		return false
+	case not(f.SID, gID(e.Stock)):
+		return false
+	case not(f.CID, gID(e.Camera)):
+		return false
+	case notl(scan, eScan):
+		return false
+	case f.StatusUndev && !e.Lab.None():
+		return false
+	case f.StatusDev && (e.Lab.None() || e.LabOutDate == (time.Time{})):
+		return false
+	case f.StatusLab && (e.Lab.None() || e.LabOutDate != (time.Time{})):
+		return false
+	}
+
+	return true
+}
+
+type Store struct {
+	ID       ID
+	Name     string
+	Products []Product
+}
+
+type Product struct {
+	*Stock
+	Amount    int
+	Price     float64
+	PerUnit   float64
+	Precision int
+}
+
 type Company struct {
 	ID   ID
 	Name string
+}
+
+func (c *Company) IDString() string {
+	if c == nil {
+		return ""
+	}
+	return string(c.ID)
 }
 
 func (c *Company) String() string {
@@ -28,21 +125,53 @@ func (c *Company) Short() string {
 	return c.Name
 }
 
+type StockType string
+
+func (s StockType) String() string {
+	switch s {
+	case ColorNegative:
+		return "CLR-"
+	case ColorPositive:
+		return "CLR+"
+	case BWNegative:
+		return "B/W-"
+	case BWPositive:
+		return "B/W+"
+	}
+
+	return ""
+}
+
+const (
+	ColorNegative = "C"
+	ColorPositive = "CS"
+	BWNegative    = "BW"
+	BWPositive    = "BWS"
+)
+
 type Stock struct {
 	ID      ID
 	Company *Company
 	Name    string
 	ISO     ISO
 	Format  string
+	Type    StockType
 	Rolls   int
 }
 
+func (s *Stock) IDString() string {
+	if s == nil {
+		return ""
+	}
+	return string(s.ID)
+}
+
 func (s *Stock) String() string {
-	return fmt.Sprintf("[%s] %s - %s %s %s", s.ID, s.Company.Short(), s.Name, s.Format, s.ISO)
+	return fmt.Sprintf("[%s] %s %s %s - %s %s", s.ID, s.Format, s.Type, s.Company.Short(), s.Name, s.ISO)
 }
 
 func (s *Stock) Short() string {
-	return fmt.Sprintf("%s - %s %s %s", s.Company.Short(), s.Name, s.Format, s.ISO)
+	return fmt.Sprintf("%s %s %s - %s %s", s.Format, s.Type, s.Company.Short(), s.Name, s.ISO)
 }
 
 type ISO struct {
@@ -59,6 +188,13 @@ func (iso ISO) String() string {
 type Lab struct {
 	ID   ID
 	Name string
+}
+
+func (l *Lab) IDString() string {
+	if l == nil {
+		return ""
+	}
+	return string(l.ID)
 }
 
 func LabNone() *Lab { return &Lab{ID0(), ""} }
@@ -85,6 +221,13 @@ type Camera struct {
 	ID    ID
 	Brand string
 	Model string
+}
+
+func (c *Camera) IDString() string {
+	if c == nil {
+		return ""
+	}
+	return string(c.ID)
 }
 
 func (c *Camera) String() string {
@@ -137,12 +280,14 @@ type DB struct {
 	Stocks    map[ID]*Stock
 	Cameras   map[ID]*Camera
 	Labs      map[ID]*Lab
+	Stores    map[ID]*Store
 }
 
-func (db *DB) row(idFilter string, row func(e Entry, id string, active bool)) {
+func (db *DB) row(filter Filter, row func(e Entry, id string, active bool)) {
 	ids := make(map[string]struct{})
 	loaded := make(map[ID]int)
 	for i, e := range db.Entries {
+		loaded[e.Camera.ID] = -1
 		if e.Lab == nil {
 			loaded[e.Camera.ID] = i
 		}
@@ -162,33 +307,13 @@ func (db *DB) row(idFilter string, row func(e Entry, id string, active bool)) {
 
 		ids[id] = struct{}{}
 
-		if idFilter != "" && id != idFilter {
+		if !filter.Match(id, e) {
 			continue
 		}
 
 		row(e, id, loaded[e.Camera.ID] == i)
 	}
 }
-
-type TableConfig struct {
-	IDFilter string
-
-	Color  bool
-	Pretty bool
-
-	Header                bool
-	HeaderSep             bool
-	Separator             string
-	StartEndWithSeperator bool
-
-	Width int
-}
-
-var defaultConf = TableConfig{
-	Separator: " \u2502 ",
-}
-
-func TableConfigDefault() TableConfig { return defaultConf }
 
 func (db *DB) PrintTable(w io.Writer, conf TableConfig) {
 	t := table.New()
@@ -214,7 +339,7 @@ func (db *DB) PrintTable(w io.Writer, conf TableConfig) {
 		id,
 		date,
 		cameraID, cameraBrand, cameraModel,
-		stockID, stockName, stockFormat, stockISO, stockCompany,
+		stockID, stockName, stockFormat, stockType, stockISO, stockCompany,
 		labID, labName, labInDate, labOutDate,
 		scan, note, linenr string,
 	) {
@@ -252,27 +377,7 @@ func (db *DB) PrintTable(w io.Writer, conf TableConfig) {
 			t.AddCol(table.ColFixed(line))
 		}
 
-		t.AddCol(table.ColFixed(table.ColPreSuf(
-			table.TermStr(stockID),
-			clr("\033[38;5;244m"),
-			clr("\033[0m"),
-		)))
-		t.AddCol(table.ColFixed(space))
-		t.AddCol(table.ColFixed(table.ColPreSuf(
-			table.TermStr(stockCompany),
-			clr("\033[32m"),
-			clr("\033[0m"),
-		)))
-		t.AddCol(table.ColFixed(space))
-		t.AddCol(table.ColFixed(table.ColPreSuf(
-			table.TermStr(stockName),
-			clr("\033[32m"),
-			clr("\033[0m"),
-		)))
-		t.AddCol(table.ColFixed(space))
-		t.AddCol(table.ColAlignRight(table.ColFixed(table.TermStr(stockFormat))))
-		t.AddCol(table.ColFixed(space))
-		t.AddCol(table.ColAlignRight(table.ColFixed(table.TermStr(stockISO))))
+		rowStock(t, conf, space, stockID, stockName, stockFormat, stockType, stockISO, stockCompany)
 		t.AddCol(table.ColFixed(line))
 
 		t.AddCol(table.ColFixed(table.ColPreSuf(
@@ -302,11 +407,11 @@ func (db *DB) PrintTable(w io.Writer, conf TableConfig) {
 	if conf.Header {
 		row(
 			false,
-			"Active",
+			"Loaded",
 			"ID",
 			"Date",
 			"[CID]", "Brand", "Model",
-			"[SID]", "Stock", "Format", "ISO", "Manufacturer",
+			"[SID]", "Stock", "Format", "Type", "ISO", "Manufacturer",
 			"[LID]", "Lab Name", "Lab in", "Lab out",
 			"Scan", "Note", "Line",
 		)
@@ -320,13 +425,13 @@ func (db *DB) PrintTable(w io.Writer, conf TableConfig) {
 			hs,
 			hs,
 			hs, hs, hs,
-			hs, hs, hs, hs, hs,
+			hs, hs, hs, hs, hs, hs,
 			hs, hs, hs, hs,
 			hs, hs, hs,
 		)
 	}
 
-	db.row(conf.IDFilter, func(e Entry, id string, active bool) {
+	db.row(conf.Filter, func(e Entry, id string, active bool) {
 		var labName, labInDate, labOutDate string
 		labID := "[N/A]"
 		if !e.Lab.None() {
@@ -353,7 +458,7 @@ func (db *DB) PrintTable(w io.Writer, conf TableConfig) {
 			id,
 			e.LoadDate.Format(dateFormat),
 			e.Camera.ID.String(), e.Camera.Brand, e.Camera.Model,
-			e.Stock.ID.String(), e.Stock.Name, e.Stock.Format, e.Stock.ISO.String(), e.Stock.Company.Name,
+			e.Stock.ID.String(), e.Stock.Name, e.Stock.Format, e.Stock.Type.String(), e.Stock.ISO.String(), e.Stock.Company.Name,
 			labID, labName, labInDate, labOutDate,
 			scan, e.Note, fmt.Sprintf("%d", e.Line),
 		)
@@ -364,14 +469,14 @@ func (db *DB) PrintTable(w io.Writer, conf TableConfig) {
 	t.WriteTo(w, "")
 }
 
-func (db *DB) PrintTags(w io.Writer, idFilter string) {
+func (db *DB) PrintTags(w io.Writer, filter Filter) {
 	r := strings.NewReplacer(" ", "_")
 	clean := func(str string) string {
 		return strings.ToLower(r.Replace(str))
 	}
 
 	list := make([]string, 0, 6)
-	db.row(idFilter, func(e Entry, id string, active bool) {
+	db.row(filter, func(e Entry, id string, active bool) {
 		list = list[:0]
 		list = append(list, fmt.Sprintf("id:%s", id))
 		list = append(list, fmt.Sprintf("camera:%s-%s", clean(e.Camera.Brand), clean(e.Camera.Model)))
@@ -402,7 +507,7 @@ func (db *DB) PrintStock(w io.Writer, conf TableConfig) {
 
 	row := func(
 		available, shot, total,
-		stockID, stockName, stockFormat, stockISO, stockCompany,
+		stockID, stockName, stockFormat, stockType, stockISO, stockCompany,
 		camera string,
 	) {
 		t.NewRow()
@@ -420,15 +525,7 @@ func (db *DB) PrintStock(w io.Writer, conf TableConfig) {
 		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(total))))
 		t.AddCol(table.ColFixed(line))
 
-		t.AddCol(table.ColFixed(table.TermStr(stockID)))
-		t.AddCol(table.ColFixed(space))
-		t.AddCol(table.ColFixed(table.TermStr(stockCompany)))
-		t.AddCol(table.ColFixed(space))
-		t.AddCol(table.ColFixed(table.TermStr(stockName)))
-		t.AddCol(table.ColFixed(space))
-		t.AddCol(table.ColFixed(table.TermStr(stockFormat)))
-		t.AddCol(table.ColFixed(space))
-		t.AddCol(table.ColFixed(table.TermStr(stockISO)))
+		rowStock(t, conf, space, stockID, stockName, stockFormat, stockType, stockISO, stockCompany)
 		t.AddCol(table.ColFixed(line))
 		t.AddCol(table.ColFixed(table.TermStr(camera)))
 
@@ -438,12 +535,12 @@ func (db *DB) PrintStock(w io.Writer, conf TableConfig) {
 	}
 
 	if conf.Header {
-		row("Avail", "Shot", "Total", "SID", "Stock", "Format", "ISO", "Manufacturer", "Camera")
+		row("Avail", "Shot", "Total", "[SID]", "Stock", "Format", "Type", "ISO", "Manufacturer", "Camera")
 	}
 	if conf.HeaderSep {
 		hs := ":---"
 		hsr := "---:"
-		row(hsr, hsr, hsr, hs, hs, hs, hs, hs, hs)
+		row(hsr, hsr, hsr, hs, hs, hsr, hsr, hs, hs, hs)
 	}
 
 	type s struct {
@@ -459,7 +556,7 @@ func (db *DB) PrintStock(w io.Writer, conf TableConfig) {
 			l[id] = &s{stock, nil, stock.Rolls}
 		}
 
-		db.row("", func(e Entry, id string, active bool) {
+		db.row(conf.Filter, func(e Entry, id string, active bool) {
 			l[e.Stock.ID].Rolls--
 			if active {
 				l[e.Stock.ID].Camera = e.Camera
@@ -487,9 +584,139 @@ func (db *DB) PrintStock(w io.Writer, conf TableConfig) {
 			stock.Stock.ID.String(),
 			stock.Stock.Name,
 			stock.Stock.Format,
+			stock.Stock.Type.String(),
 			stock.Stock.ISO.String(),
 			stock.Stock.Company.Name,
 			cam,
+		)
+	}
+
+	if conf.Width != 0 {
+		t.SetFixedWidth(conf.Width)
+	}
+	t.WriteTo(w, "")
+}
+
+func (db *DB) PrintPrices(w io.Writer, conf TableConfig) {
+	t := table.New()
+	space := table.TermStr(" ")
+	line := table.TermStr(conf.Separator)
+	lline := table.TermStr(strings.TrimLeft(conf.Separator, " "))
+	rline := table.TermStr(strings.TrimRight(conf.Separator, " "))
+
+	if !conf.Pretty {
+		space = line
+	}
+
+	row := func(
+		bestPrice bool, bestPriceString string,
+		perUnit, price, amount,
+		store,
+		stockID, stockName, stockFormat, stockType, stockISO, stockCompany string,
+	) {
+		t.NewRow()
+
+		pricePrefix, priceSuffix := "", ""
+		if !bestPrice && conf.Color {
+			pricePrefix = "\033[31m"
+			priceSuffix = "\033[0m"
+		}
+
+		if conf.StartEndWithSeperator {
+			t.AddCol(table.ColFixed(lline))
+		}
+
+		t.AddCol(table.ColFixed(table.ColPreSuf(
+			table.ColAlignRight(table.TermStr(perUnit)),
+			pricePrefix,
+			priceSuffix,
+		)))
+		t.AddCol(table.ColFixed(line))
+
+		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(price))))
+		t.AddCol(table.ColFixed(line))
+
+		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(amount))))
+		t.AddCol(table.ColFixed(line))
+
+		rowStock(t, conf, space, stockID, stockName, stockFormat, stockType, stockISO, stockCompany)
+		t.AddCol(table.ColFixed(line))
+
+		t.AddCol(table.ColFixed(table.TermStr(store)))
+
+		if !conf.Color {
+			t.AddCol(table.ColFixed(line))
+			t.AddCol(table.ColFixed(table.TermStr(bestPriceString)))
+		}
+
+		if conf.StartEndWithSeperator {
+			t.AddCol(table.ColFixed(rline))
+		}
+	}
+
+	if conf.Header {
+		row(
+			false, "Best Price",
+			"Price", "Total", "Amount",
+			"Store",
+			"[SID]", "Stock", "Format", "Type", "ISO", "Manufacturer",
+		)
+	}
+	if conf.HeaderSep {
+		hs := ":---"
+		hsr := "---:"
+		row(
+			false,
+			hs,
+			hsr, hsr, hsr,
+			hs,
+			hs, hs, hsr, hsr, hs, hs,
+		)
+	}
+
+	type product struct {
+		StoreID ID
+		Product
+	}
+
+	cheapest := make(map[ID]float64)
+	sorted := make([]*product, 0)
+	for _, s := range db.Stores {
+		for _, p := range s.Products {
+			sorted = append(sorted, &product{StoreID: s.ID, Product: p})
+		}
+	}
+
+	slices.SortFunc(sorted, func(i, j *product) int {
+		c := cmp.Compare(i.PerUnit, j.PerUnit)
+		if c != 0 {
+			return c
+		}
+
+		return cmp.Compare(i.ID, j.ID)
+	})
+
+	for _, p := range sorted {
+		if cheapest[p.ID] == 0 || p.PerUnit < cheapest[p.ID] {
+			cheapest[p.ID] = p.PerUnit
+		}
+	}
+
+	for _, p := range sorted {
+		s := db.Stores[p.StoreID]
+		best := cheapest[p.ID] == p.PerUnit
+		row(
+			best, "yes",
+			strconv.FormatFloat(p.PerUnit, 'f', p.Precision, 64),
+			strconv.FormatFloat(p.Price, 'f', p.Precision, 64),
+			strconv.Itoa(p.Amount),
+			fmt.Sprintf("%s %s", s.ID.String(), s.Name),
+			p.ID.String(),
+			p.Name,
+			p.Format,
+			p.Type.String(),
+			p.ISO.String(),
+			p.Company.Name,
 		)
 	}
 

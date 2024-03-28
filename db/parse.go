@@ -20,6 +20,7 @@ func Parse(r io.Reader) (*DB, error) {
 		Stocks:    make(map[ID]*Stock, 0),
 		Cameras:   make(map[ID]*Camera, 0),
 		Labs:      make(map[ID]*Lab, 0),
+		Stores:    make(map[ID]*Store, 0),
 	}
 
 	var lastID ID
@@ -32,6 +33,7 @@ func Parse(r io.Reader) (*DB, error) {
 		keywordCamera  = "Camera"
 		keywordLab     = "Lab"
 		keywordEntry   = "Entry"
+		keywordStore   = "Store"
 	)
 
 	s := bufio.NewScanner(r)
@@ -64,7 +66,20 @@ func Parse(r io.Reader) (*DB, error) {
 				return db, fmt.Errorf("no stock with id %s", lastID)
 			}
 			if s.Format == "" {
-				s.Format = t
+				f := strings.Fields(t)
+				s.Format = f[0]
+				s.Type = ColorNegative
+
+				if len(f) == 2 {
+					tp := StockType(strings.ToUpper(f[1]))
+					if tp != ColorNegative && tp != ColorPositive && tp != BWNegative && tp != BWPositive {
+						return db, fmt.Errorf("invalid stock type '%s' on line %d", tp, line)
+					}
+
+					s.Type = tp
+				} else if len(f) > 2 {
+					return db, fmt.Errorf("invalid format on line %d", line)
+				}
 			} else if s.Name == "" {
 				s.Name = t
 			} else if s.Company == nil {
@@ -146,6 +161,59 @@ func Parse(r io.Reader) (*DB, error) {
 			db.Entries[len(db.Entries)-1].Note = t
 			keyword = keywordNone
 			continue
+		case keywordStore:
+			s, ok := db.Stores[lastID]
+			if !ok {
+				return db, fmt.Errorf("no store with id %s", lastID)
+			}
+
+			if s.Name == "" {
+				s.Name = t
+				continue
+			}
+
+			f := strings.Fields(t)
+			if len(f) != 3 {
+				return db, fmt.Errorf("invalid product on line %d: %s", line, t)
+			}
+
+			sid, err := MkID(f[0])
+			if err != nil {
+				return db, err
+			}
+			stock, ok := db.Stocks[sid]
+			if !ok {
+				return db, fmt.Errorf("no stock with id %s", sid)
+			}
+
+			amount, err := strconv.Atoi(f[1])
+			if err != nil {
+				return db, fmt.Errorf("invalid amount on line %d", line)
+			}
+
+			price, err := strconv.ParseFloat(f[2], 64)
+			if err != nil {
+				return db, fmt.Errorf("invalid price on line %d", line)
+			}
+
+			precision := 2
+			ix := strings.Index(f[2], ".")
+			if ix != -1 {
+				precision = len(f[2]) - ix - 1
+			}
+
+			s.Products = append(
+				s.Products,
+				Product{
+					Stock:     stock,
+					Amount:    amount,
+					Price:     price,
+					PerUnit:   price / float64(amount),
+					Precision: precision,
+				},
+			)
+
+			continue
 		}
 
 		p := strings.Fields(t)
@@ -195,6 +263,11 @@ func Parse(r io.Reader) (*DB, error) {
 				return db, fmt.Errorf("duplicate lab id '%s'", id.String())
 			}
 			db.Labs[id] = &Lab{ID: id}
+		case keywordStore:
+			if _, ok := db.Stores[id]; ok {
+				return db, fmt.Errorf("duplicate store id '%s'", id.String())
+			}
+			db.Stores[id] = &Store{ID: id}
 		default:
 			return db, fmt.Errorf("invalid keyword: '%s'", keyword)
 		}
