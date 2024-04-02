@@ -523,6 +523,7 @@ func (db *DB) PrintStock(w io.Writer, conf TableConfig) {
 		Rolls int
 	}
 
+	used := make(map[ID]struct{})
 	sorted := make([]*s, 0, len(db.Stocks))
 	{
 		l := make(map[ID]*s, len(db.Stocks))
@@ -531,6 +532,7 @@ func (db *DB) PrintStock(w io.Writer, conf TableConfig) {
 		}
 
 		db.row(conf.Filter, func(e Entry, id string, active bool) {
+			used[e.Stock.ID] = struct{}{}
 			l[e.Stock.ID].Rolls--
 			if active {
 				l[e.Stock.ID].Camera = e.Camera
@@ -548,7 +550,7 @@ func (db *DB) PrintStock(w io.Writer, conf TableConfig) {
 
 	for _, stock := range sorted {
 		var cam string
-		if stock.Stock.Rolls == 0 {
+		if _, ok := used[stock.Stock.ID]; !ok && stock.Stock.Rolls == 0 {
 			continue
 		}
 		if stock.Camera != nil {
