@@ -251,7 +251,7 @@ type Entry struct {
 
 	Line uint
 
-	Note string
+	Note []string
 }
 
 func (e Entry) ID(i int) string {
@@ -341,7 +341,7 @@ func (db *DB) PrintTable(w io.Writer, conf TableConfig) {
 		cameraID, cameraBrand, cameraModel,
 		stockID, stockName, stockFormat, stockType, stockISO, stockCompany,
 		labID, labName, labInDate, labOutDate,
-		scan, note, linenr string,
+		scan, linenr string,
 	) {
 		t.NewRow()
 		if conf.StartEndWithSeperator {
@@ -396,8 +396,6 @@ func (db *DB) PrintTable(w io.Writer, conf TableConfig) {
 		t.AddCol(table.ColFixed(table.TermStr(scan)))
 		t.AddCol(table.ColFixed(line))
 		t.AddCol(table.ColFixed(table.TermStr(linenr)))
-		t.AddCol(table.ColFixed(line))
-		t.AddCol(table.TermStr(note))
 
 		if conf.StartEndWithSeperator {
 			t.AddCol(table.ColFixed(rline))
@@ -413,7 +411,7 @@ func (db *DB) PrintTable(w io.Writer, conf TableConfig) {
 			"[CID]", "Brand", "Model",
 			"[SID]", "Stock", "Format", "Type", "ISO", "Manufacturer",
 			"[LID]", "Lab Name", "Lab in", "Lab out",
-			"Scan", "Note", "Line",
+			"Scan", "Line",
 		)
 	}
 
@@ -427,7 +425,7 @@ func (db *DB) PrintTable(w io.Writer, conf TableConfig) {
 			hs, hs, hs,
 			hs, hs, hs, hs, hs, hs,
 			hs, hs, hs, hs,
-			hs, hs, hs,
+			hs, hs,
 		)
 	}
 
@@ -460,7 +458,7 @@ func (db *DB) PrintTable(w io.Writer, conf TableConfig) {
 			e.Camera.ID.String(), e.Camera.Brand, e.Camera.Model,
 			e.Stock.ID.String(), e.Stock.Name, e.Stock.Format, e.Stock.Type.String(), e.Stock.ISO.String(), e.Stock.Company.Name,
 			labID, labName, labInDate, labOutDate,
-			scan, e.Note, fmt.Sprintf("%d", e.Line),
+			scan, fmt.Sprintf("%d", e.Line),
 		)
 	})
 	if conf.Width != 0 {
@@ -574,6 +572,9 @@ func (db *DB) PrintStock(w io.Writer, conf TableConfig) {
 
 	for _, stock := range sorted {
 		var cam string
+		if stock.Stock.Rolls == 0 {
+			continue
+		}
 		if stock.Camera != nil {
 			cam = fmt.Sprintf("%s %s %s", stock.Camera.ID.String(), stock.Camera.Brand, stock.Camera.Model)
 		}

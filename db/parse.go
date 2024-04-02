@@ -32,7 +32,7 @@ func Parse(r io.Reader) (*DB, error) {
 		keywordStock   = "Stock"
 		keywordCamera  = "Camera"
 		keywordLab     = "Lab"
-		keywordEntry   = "Entry"
+		keywordNote    = "Note"
 		keywordStore   = "Store"
 	)
 
@@ -42,7 +42,15 @@ func Parse(r io.Reader) (*DB, error) {
 	var line uint
 	for s.Scan() {
 		line++
-		t := strings.TrimSpace(s.Text())
+		raw := s.Text()
+		indent := 0
+		for _, c := range raw {
+			if c != ' ' {
+				break
+			}
+			indent++
+		}
+		t := strings.TrimSpace(raw)
 		if t == "" {
 			keyword = keywordNone
 			continue
@@ -157,9 +165,12 @@ func Parse(r io.Reader) (*DB, error) {
 			l.Name = t
 			keyword = keywordNone
 			continue
-		case keywordEntry:
-			db.Entries[len(db.Entries)-1].Note = t
-			keyword = keywordNone
+		case keywordNote:
+			if indent < 2 {
+				break
+			}
+			e := db.Entries[len(db.Entries)-1]
+			e.Note = append(e.Note, t)
 			continue
 		case keywordStore:
 			s, ok := db.Stores[lastID]
@@ -227,7 +238,7 @@ func Parse(r io.Reader) (*DB, error) {
 
 			e.Line = line
 			db.Entries = append(db.Entries, e)
-			keyword = keywordEntry
+			keyword = keywordNote
 			continue
 		}
 
