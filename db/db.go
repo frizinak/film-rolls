@@ -393,9 +393,9 @@ func (db *DB) PrintTable(w io.Writer, conf TableConfig) {
 		t.AddCol(table.ColFixed(table.TermStr(labOutDate)))
 		t.AddCol(table.ColFixed(line))
 
-		t.AddCol(table.ColFixed(table.TermStr(scan)))
+		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(scan))))
 		t.AddCol(table.ColFixed(line))
-		t.AddCol(table.ColFixed(table.TermStr(linenr)))
+		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(linenr))))
 
 		if conf.StartEndWithSeperator {
 			t.AddCol(table.ColFixed(rline))
