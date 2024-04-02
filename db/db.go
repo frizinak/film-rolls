@@ -117,10 +117,6 @@ func (c *Company) IDString() string {
 	return string(c.ID)
 }
 
-func (c *Company) String() string {
-	return fmt.Sprintf("[%s] %s", c.ID, c.Name)
-}
-
 func (c *Company) Short() string {
 	return c.Name
 }
@@ -166,14 +162,6 @@ func (s *Stock) IDString() string {
 	return string(s.ID)
 }
 
-func (s *Stock) String() string {
-	return fmt.Sprintf("[%s] %s %s %s - %s %s", s.ID, s.Format, s.Type, s.Company.Short(), s.Name, s.ISO)
-}
-
-func (s *Stock) Short() string {
-	return fmt.Sprintf("%s %s %s - %s %s", s.Format, s.Type, s.Company.Short(), s.Name, s.ISO)
-}
-
 type ISO struct {
 	Low, High uint32
 }
@@ -199,14 +187,6 @@ func (l *Lab) IDString() string {
 
 func LabNone() *Lab { return &Lab{ID0(), ""} }
 
-func (l *Lab) String() string {
-	if l.None() {
-		return "[N/A]"
-	}
-
-	return fmt.Sprintf("[%s] %s", l.ID, l.Name)
-}
-
 func (l *Lab) None() bool {
 	return l == nil || l.ID == ID0()
 }
@@ -228,10 +208,6 @@ func (c *Camera) IDString() string {
 		return ""
 	}
 	return string(c.ID)
-}
-
-func (c *Camera) String() string {
-	return fmt.Sprintf("[%s] %s %s", c.ID, c.Brand, c.Model)
 }
 
 func (c *Camera) Short() string {
