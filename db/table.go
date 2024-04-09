@@ -5,13 +5,14 @@ import "github.com/frizinak/film-rolls/table"
 type TableConfig struct {
 	Filter Filter
 
+	Short  bool
 	Color  bool
 	Pretty bool
 
 	Header                bool
 	HeaderSep             bool
 	Separator             string
-	StartEndWithSeperator bool
+	StartEndWithSeparator bool
 
 	Width int
 }
@@ -40,22 +41,25 @@ func rowStock(
 		clr("\033[38;5;244m"),
 		clr("\033[0m"),
 	)))
-	t.AddCol(table.ColFixed(space))
-	t.AddCol(table.ColAlignRight(table.ColFixed(table.TermStr(stockFormat))))
-	t.AddCol(table.ColFixed(space))
-	t.AddCol(table.ColAlignRight(table.ColFixed(table.TermStr(stockType))))
-	t.AddCol(table.ColFixed(space))
-	t.AddCol(table.ColFixed(table.ColPreSuf(
-		table.TermStr(stockCompany),
-		clr("\033[32m"),
-		clr("\033[0m"),
-	)))
-	t.AddCol(table.ColFixed(space))
-	t.AddCol(table.ColFixed(table.ColPreSuf(
-		table.TermStr(stockName),
-		clr("\033[32m"),
-		clr("\033[0m"),
-	)))
-	t.AddCol(table.ColFixed(space))
-	t.AddCol(table.ColAlignRight(table.ColFixed(table.TermStr(stockISO))))
+
+	if !conf.Short {
+		t.AddCol(table.ColFixed(space))
+		t.AddCol(table.ColAlignRight(table.ColFixed(table.TermStr(stockFormat))))
+		t.AddCol(table.ColFixed(space))
+		t.AddCol(table.ColAlignRight(table.ColFixed(table.TermStr(stockType))))
+		t.AddCol(table.ColFixed(space))
+		t.AddCol(table.ColFixed(table.ColPreSuf(
+			table.TermStr(stockCompany),
+			clr("\033[32m"),
+			clr("\033[0m"),
+		)))
+		t.AddCol(table.ColFixed(space))
+		t.AddCol(table.ColFixed(table.ColPreSuf(
+			table.TermStr(stockName),
+			clr("\033[32m"),
+			clr("\033[0m"),
+		)))
+		t.AddCol(table.ColFixed(space))
+		t.AddCol(table.ColAlignRight(table.ColFixed(table.TermStr(stockISO))))
+	}
 }

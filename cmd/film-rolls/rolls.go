@@ -39,46 +39,66 @@ func main() {
 	var dbFile string
 
 	conf := db.TableConfigDefault()
-	flag.BoolVar(&verbose, "v", false, "Be verbose")
-	flag.StringVar(&dbFile, "l", "", "Path to the log file [./rolls.log or $HOME/film-rolls.log]")
-	flag.StringVar(&mode, "m", modeLog, fmt.Sprintf("Mode: %s, %s, %s or %s", modeLog, modeStock, modePrices, modeTags))
-	flag.StringVar(&format, "f", formatPretty, fmt.Sprintf("Format: %s or %s", formatPlain, formatPretty))
-	flag.StringVar(&conf.Separator, "s", conf.Separator, "Table column seperator")
-	flag.BoolVar(&md, "md", false, fmt.Sprintf("Output markdown compatible table (implies -f %s, ignores -s)", formatPlain))
-	flag.BoolVar(&nh, "nh", false, "Don't output header")
+	flag.BoolVar(&verbose, "v", false, "")
+	flag.StringVar(&dbFile, "l", "", "")
+	flag.StringVar(&mode, "m", modeLog, "")
+	flag.StringVar(&format, "f", formatPretty, "")
+	flag.StringVar(&conf.Separator, "s", conf.Separator, "")
+	flag.BoolVar(&md, "md", false, "")
+	flag.BoolVar(&nh, "nh", false, "")
+	flag.BoolVar(&conf.Short, "short", false, "Shorter output")
 
-	flag.StringVar(&conf.Filter.ID, "id", "", "Filter by roll id")
-	flag.StringVar(&conf.Filter.LID, "lid", "", "Filter by lab id")
-	flag.StringVar(&conf.Filter.SID, "sid", "", "Filter by film stock id")
-	flag.StringVar(&conf.Filter.CID, "cid", "", "Filter by camera id")
-	flag.StringVar(&conf.Filter.Scan, "scan", "", "Filter by scan serial number")
+	flag.StringVar(&conf.Filter.ID, "id", "", "")
+	flag.StringVar(&conf.Filter.LID, "lid", "", "")
+	flag.StringVar(&conf.Filter.SID, "sid", "", "")
+	flag.StringVar(&conf.Filter.CID, "cid", "", "")
+	flag.StringVar(&conf.Filter.Scan, "scan", "", "")
+	flag.StringVar(&conf.Filter.StockFormat, "format", "", "")
 
-	flag.BoolVar(&conf.Filter.StatusUndev, "undev", false, "Only show film rolls that have not yet been developed")
-	flag.BoolVar(&conf.Filter.StatusDev, "dev", false, "Only show film rolls that have been developed")
-	flag.BoolVar(&conf.Filter.StatusLab, "lab", false, "Only show film rolls that are at the lab")
+	flag.BoolVar(&conf.Filter.StatusUndev, "undev", false, "")
+	flag.BoolVar(&conf.Filter.StatusDev, "dev", false, "")
+	flag.BoolVar(&conf.Filter.StatusLab, "lab", false, "")
+	flag.BoolVar(&conf.Filter.StatusScanned, "scanned", false, "")
+	flag.BoolVar(&conf.Filter.StatusUnscanned, "unscanned", false, "")
+	flag.BoolVar(&conf.Filter.StatusLoaded, "loaded", false, "")
+	flag.BoolVar(&conf.Filter.StatusUnloaded, "unloaded", false, "")
+	flag.BoolVar(&conf.Filter.StockColor, "color", false, "")
+	flag.BoolVar(&conf.Filter.StockBW, "bw", false, "")
+	flag.BoolVar(&conf.Filter.StockPos, "pos", false, "")
+	flag.BoolVar(&conf.Filter.StockNeg, "neg", false, "")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "%s <flags>:\n", os.Args[0])
 		fmt.Print(`  General:
-    -m <mode>           one of log, stock, prices or tags (default "log")
-    -l <logfile>        (default ./rolls.log or $HOME/film-rolls.log)
-    -v                  be verbose
+    -m <mode>               one of log, stock, prices or tags (default "log")
+    -l <logfile>            (default ./rolls.log or $HOME/film-rolls.log)
+    -v                      be verbose
 
   Output:
-    -md                 output markdown compatible table (implies -f plain, ignores -s)
-    -nh                 don't output header
-    -s  <separator>     (default " │ ")
-    -f  <format>        Format: plain or pretty (default "pretty")
+    -md                     output markdown compatible table (implies -f plain, ignores -s)
+    -nh                     don't output header
+    -s  <separator>         (default " │ ")
+    -f  <format>            format: plain or pretty (default "pretty")
+    -short                  shorter output
 
   Filter:
-    -id   <roll-id>
-    -cid  <camera-id>
-    -lid  <lab-id>
-    -sid  <stock-id>
-    -scan <scan-number>
-    -dev                show only developed rolls
-    -undev              show only undeveloped rolls
-    -lab                show only rolls at the lab
+    -id     <roll-ids>      comma separated list of ids to filter on
+    -cid    <camera-ids>    comma separated list of ids to filter on
+    -lid    <lab-ids>       comma separated list of ids to filter on
+    -sid    <stock-ids>     comma separated list of ids to filter on
+    -scan   <scan-numbers>  comma separated list of ids to filter on
+    -format <stock-formats> comma separated list of ids to filter on
+    -dev                    show only developed rolls
+    -undev                  show only undeveloped rolls
+    -lab                    show only rolls at the lab
+    -scanned                show only scanned rolls
+    -unscanned              show only unscanned rolls
+    -loaded                 show only loaded rolls
+    -unloaded               show only unloaded rolls
+    -color                  show only color rolls
+    -bw                     show only b/w rolls
+    -pos                    show only slides
+    -neg                    show only negatives
 `)
 	}
 	flag.Parse()
@@ -124,7 +144,7 @@ func main() {
 		// conf.Header = true
 		conf.HeaderSep = true
 		conf.Separator = " | "
-		conf.StartEndWithSeperator = true
+		conf.StartEndWithSeparator = true
 		format = formatPlain
 	}
 

@@ -81,7 +81,7 @@ func Parse(r io.Reader) (*DB, error) {
 				if len(f) == 2 {
 					tp := StockType(strings.ToUpper(f[1]))
 					if tp != ColorNegative && tp != ColorPositive && tp != BWNegative && tp != BWPositive {
-						return db, fmt.Errorf("invalid stock type '%s' on line %d", tp, line)
+						return db, fmt.Errorf("invalid stock type '%s' on line %d", f[1], line)
 					}
 
 					s.Type = tp
@@ -169,8 +169,8 @@ func Parse(r io.Reader) (*DB, error) {
 			if indent < 2 {
 				break
 			}
-			e := db.Entries[len(db.Entries)-1]
-			e.Note = append(e.Note, t)
+			i := len(db.Entries) - 1
+			db.Entries[i].Note = append(db.Entries[i].Note, t)
 			continue
 		case keywordStore:
 			s, ok := db.Stores[lastID]

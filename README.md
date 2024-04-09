@@ -121,7 +121,7 @@ Stock RSC
     5
 
 Stock LGR
-    135
+    135 BW
     Lady Grey
     LOM
     400
