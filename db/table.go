@@ -5,6 +5,7 @@ import "github.com/frizinak/film-rolls/table"
 type TableConfig struct {
 	Filter Filter
 
+	Notes  bool
 	Short  bool
 	Color  bool
 	Pretty bool

@@ -364,7 +364,8 @@ func (db *DB) PrintTable(w io.Writer, conf TableConfig) {
 		cameraID, cameraBrand, cameraModel,
 		stockID, stockName, stockFormat, stockType, stockISO, stockCompany,
 		labID, labName, labInDate, labOutDate,
-		scan, linenr string,
+		scan, linenr,
+		note string,
 	) {
 		t.NewRow()
 		if conf.StartEndWithSeparator {
@@ -431,6 +432,11 @@ func (db *DB) PrintTable(w io.Writer, conf TableConfig) {
 		t.AddCol(table.ColFixed(line))
 		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(linenr))))
 
+		if conf.Notes {
+			t.AddCol(table.ColFixed(line))
+			t.AddCol(table.TermStr(note))
+		}
+
 		if conf.StartEndWithSeparator {
 			t.AddCol(table.ColFixed(rline))
 		}
@@ -446,6 +452,7 @@ func (db *DB) PrintTable(w io.Writer, conf TableConfig) {
 			"SID", "Stock", "Format", "Type", "ISO", "Manufacturer",
 			"LID", "Lab Name", "Lab in", "Lab out",
 			"Scan", "Line",
+			"Notes",
 		)
 	}
 
@@ -460,6 +467,7 @@ func (db *DB) PrintTable(w io.Writer, conf TableConfig) {
 			hs, hs, hs, hs, hs, hs,
 			hs, hs, hs, hs,
 			hs, hs,
+			hs,
 		)
 	}
 
@@ -484,6 +492,11 @@ func (db *DB) PrintTable(w io.Writer, conf TableConfig) {
 		if e.Loaded {
 			loadedString = "loaded"
 		}
+
+		var note1 string
+		if conf.Notes && len(e.Note) != 0 {
+			note1 = e.Note[0]
+		}
 		row(
 			e.Loaded,
 			loadedString,
@@ -493,7 +506,26 @@ func (db *DB) PrintTable(w io.Writer, conf TableConfig) {
 			e.Stock.ID.String(), e.Stock.Name, e.Stock.Format, e.Stock.Type.String(), e.Stock.ISO.String(), e.Stock.Company.Name,
 			labID, labName, labInDate, labOutDate,
 			scan, fmt.Sprintf("%d", e.Line),
+			note1,
 		)
+
+		if conf.Notes && len(e.Note) > 1 {
+			notes := make([]string, len(e.Note))
+			copy(notes, e.Note[1:])
+			for _, note := range notes {
+				row(
+					false,
+					"",
+					"",
+					"",
+					"", "", "",
+					"", "", "", "", "", "",
+					"", "", "", "",
+					"", "",
+					note,
+				)
+			}
+		}
 	})
 	if conf.Width != 0 {
 		t.SetFixedWidth(conf.Width)

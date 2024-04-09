@@ -46,7 +46,8 @@ func main() {
 	flag.StringVar(&conf.Separator, "s", conf.Separator, "")
 	flag.BoolVar(&md, "md", false, "")
 	flag.BoolVar(&nh, "nh", false, "")
-	flag.BoolVar(&conf.Short, "short", false, "Shorter output")
+	flag.BoolVar(&conf.Short, "short", false, "")
+	flag.BoolVar(&conf.Notes, "notes", false, "")
 
 	flag.StringVar(&conf.Filter.ID, "id", "", "")
 	flag.StringVar(&conf.Filter.LID, "lid", "", "")
@@ -80,6 +81,7 @@ func main() {
     -s  <separator>         (default " │ ")
     -f  <format>            format: plain or pretty (default "pretty")
     -short                  shorter output
+    -notes                  show notes
 
   Filter:
     -id     <roll-ids>      comma separated list of ids to filter on
