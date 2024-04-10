@@ -278,9 +278,13 @@ type Entry struct {
 
 func (e Entry) ID(i int) string {
 	h := sha512.New()
-	fmt.Fprintln(h, e.LoadDate.Format(dateFormat))
-	fmt.Fprintln(h, e.Camera.ID)
-	fmt.Fprintln(h, e.Stock.ID)
+	fmt.Fprintf(
+		h,
+		"%s\n[%s]\n[%s]\n",
+		e.LoadDate.Format(dateFormat),
+		string(e.Camera.ID),
+		string(e.Stock.ID),
+	)
 	if i != 0 {
 		fmt.Fprintln(h, i)
 	}
