@@ -2,6 +2,16 @@
 
 A way to record the history of film rolls passing through your camera(s).
 
+## Installation
+
+`go install ./cmd/film-rolls`
+`go install ./cmd/film-rolls_completion`
+
+add to your shell rc file:
+
+`complete -C film-rolls_completion -o default film-rolls`
+
+
 ## Format
 
 ### Definitions

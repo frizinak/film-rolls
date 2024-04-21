@@ -28,6 +28,7 @@ const (
 	modeStock  = "stock"
 	modePrices = "prices"
 	modeTags   = "tags"
+	modeIDs    = "ids"
 )
 
 func main() {
@@ -177,6 +178,22 @@ func main() {
 	case modeTags:
 		run = func(db *db.DB) {
 			db.PrintTags(os.Stdout, conf.Filter)
+		}
+
+	case modeIDs:
+		run = func(d *db.DB) {
+			d.Row(db.Filter{}, func(e db.Entry, id string) {
+				fmt.Println("id", id)
+			})
+			for id := range d.Cameras {
+				fmt.Println("cid", id)
+			}
+			for id := range d.Stocks {
+				fmt.Println("sid", id)
+			}
+			for id := range d.Labs {
+				fmt.Println("lid", id)
+			}
 		}
 
 	default:

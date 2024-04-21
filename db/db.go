@@ -309,7 +309,7 @@ type DB struct {
 	Stores    map[ID]*Store
 }
 
-func (db *DB) row(filter Filter, row func(e Entry, id string)) {
+func (db *DB) Row(filter Filter, row func(e Entry, id string)) {
 	ids := make(map[string]struct{})
 	loaded := make(map[ID]int)
 	for i, e := range db.Entries {
@@ -475,7 +475,7 @@ func (db *DB) PrintTable(w io.Writer, conf TableConfig) {
 		)
 	}
 
-	db.row(conf.Filter, func(e Entry, id string) {
+	db.Row(conf.Filter, func(e Entry, id string) {
 		var labName, labInDate, labOutDate string
 		labID := "N/A"
 		if !e.Lab.None() {
@@ -544,19 +544,20 @@ func (db *DB) PrintTags(w io.Writer, filter Filter) {
 	}
 
 	list := make([]string, 0, 6)
-	db.row(filter, func(e Entry, id string) {
+	db.Row(filter, func(e Entry, id string) {
 		list = list[:0]
 		list = append(list, fmt.Sprintf("id:%s", id))
 		list = append(list, fmt.Sprintf("camera:%s-%s", clean(e.Camera.Brand), clean(e.Camera.Model)))
 		list = append(list, fmt.Sprintf("film:%s-%s", clean(e.Stock.Company.Name), clean(e.Stock.Name)))
 		list = append(list, fmt.Sprintf("iso:%s", clean(e.Stock.ISO.String())))
+		list = append(list, fmt.Sprintf("format:%s", clean(e.Stock.Format)))
+		list = append(list, fmt.Sprintf("type:%s", clean(e.Stock.Type.String())))
 		if !e.Lab.None() {
 			list = append(list, fmt.Sprintf("lab:%s", clean(e.Lab.Name)))
 		}
 		if e.Scan != 0 {
 			list = append(list, fmt.Sprintf("scan:%04d", e.Scan))
 		}
-		list = append(list, fmt.Sprintf("line:%d", e.Line))
 
 		fmt.Fprintln(w, strings.Join(list, " "))
 	})
@@ -642,7 +643,7 @@ func (db *DB) PrintStock(w io.Writer, conf TableConfig) {
 			l[id] = &s{stock, nil, stock.Rolls}
 		}
 
-		db.row(Filter{}, func(e Entry, id string) {
+		db.Row(Filter{}, func(e Entry, id string) {
 			used[e.Stock.ID] = struct{}{}
 			l[e.Stock.ID].Rolls--
 			if e.Loaded {
