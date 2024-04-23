@@ -720,10 +720,12 @@ func (db *DB) PrintCameras(w io.Writer, conf TableConfig) {
 			clr("\033[38;5;244m"),
 			clr("\033[0m"),
 		)))
-		t.AddCol(table.ColFixed(space))
-		t.AddCol(table.ColFixed(table.TermStr(cameraBrand)))
-		t.AddCol(table.ColFixed(space))
-		t.AddCol(table.ColFixed(table.TermStr(cameraModel)))
+		if !conf.Short {
+			t.AddCol(table.ColFixed(space))
+			t.AddCol(table.ColFixed(table.TermStr(cameraBrand)))
+			t.AddCol(table.ColFixed(space))
+			t.AddCol(table.ColFixed(table.TermStr(cameraModel)))
+		}
 		t.AddCol(table.ColFixed(line))
 
 		rowStock(t, conf, space, stockID, stockName, stockFormat, stockType, stockISO, stockCompany)
