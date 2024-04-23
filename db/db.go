@@ -574,17 +574,9 @@ func (db *DB) PrintStock(w io.Writer, conf TableConfig) {
 		space = line
 	}
 
-	clr := func(seq string) string {
-		if conf.Color {
-			return seq
-		}
-		return ""
-	}
-
 	row := func(
 		available, shot, total,
-		stockID, stockName, stockFormat, stockType, stockISO, stockCompany,
-		cameraID, cameraBrand, cameraModel string,
+		stockID, stockName, stockFormat, stockType, stockISO, stockCompany string,
 	) {
 		t.NewRow()
 
@@ -602,18 +594,6 @@ func (db *DB) PrintStock(w io.Writer, conf TableConfig) {
 		t.AddCol(table.ColFixed(line))
 
 		rowStock(t, conf, space, stockID, stockName, stockFormat, stockType, stockISO, stockCompany)
-		t.AddCol(table.ColFixed(line))
-		t.AddCol(table.ColFixed(table.ColPreSuf(
-			table.TermStr(cameraID),
-			clr("\033[38;5;244m"),
-			clr("\033[0m"),
-		)))
-		if !conf.Short {
-			t.AddCol(table.ColFixed(space))
-			t.AddCol(table.ColFixed(table.TermStr(cameraBrand)))
-			t.AddCol(table.ColFixed(space))
-			t.AddCol(table.ColFixed(table.TermStr(cameraModel)))
-		}
 
 		if conf.StartEndWithSeparator {
 			t.AddCol(table.ColFixed(rline))
@@ -621,17 +601,16 @@ func (db *DB) PrintStock(w io.Writer, conf TableConfig) {
 	}
 
 	if conf.Header {
-		row("Avail", "Shot", "Total", "SID", "Stock", "Format", "Type", "ISO", "Manufacturer", "CID", "Brand", "Model")
+		row("Avail", "Shot", "Total", "SID", "Stock", "Format", "Type", "ISO", "Manufacturer")
 	}
 	if conf.HeaderSep {
 		hs := ":---"
 		hsr := "---:"
-		row(hsr, hsr, hsr, hs, hs, hsr, hsr, hs, hs, hs, hs, hs)
+		row(hsr, hsr, hsr, hs, hs, hsr, hsr, hs, hs)
 	}
 
 	type s struct {
 		*Stock
-		*Camera
 		Rolls int
 	}
 
@@ -640,15 +619,12 @@ func (db *DB) PrintStock(w io.Writer, conf TableConfig) {
 	{
 		l := make(map[ID]*s, len(db.Stocks))
 		for id, stock := range db.Stocks {
-			l[id] = &s{stock, nil, stock.Rolls}
+			l[id] = &s{stock, stock.Rolls}
 		}
 
 		db.Row(Filter{}, func(e Entry, id string) {
 			used[e.Stock.ID] = struct{}{}
 			l[e.Stock.ID].Rolls--
-			if e.Loaded {
-				l[e.Stock.ID].Camera = e.Camera
-			}
 		})
 
 		for _, stock := range l {
@@ -681,13 +657,6 @@ func (db *DB) PrintStock(w io.Writer, conf TableConfig) {
 			continue
 		}
 
-		var cameraID, cameraBrand, cameraModel string
-		if stock.Camera != nil {
-			cameraID = stock.Camera.ID.String()
-			cameraBrand = stock.Camera.Brand
-			cameraModel = stock.Camera.Model
-		}
-
 		row(
 			strconv.Itoa(stock.Rolls),
 			strconv.Itoa(stock.Stock.Rolls-stock.Rolls),
@@ -698,9 +667,6 @@ func (db *DB) PrintStock(w io.Writer, conf TableConfig) {
 			stock.Stock.Type.String(),
 			stock.Stock.ISO.String(),
 			stock.Stock.Company.Name,
-			cameraID,
-			cameraBrand,
-			cameraModel,
 		)
 	}
 
