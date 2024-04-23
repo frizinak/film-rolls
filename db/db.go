@@ -656,7 +656,19 @@ func (db *DB) PrintStock(w io.Writer, conf TableConfig) {
 		}
 
 		slices.SortFunc(sorted, func(i, j *s) int {
-			return cmp.Compare(i.Name, j.Name)
+			if c := cmp.Compare(i.Rolls, j.Rolls); c != 0 {
+				return c
+			}
+
+			if c := cmp.Compare(i.Stock.Rolls, j.Stock.Rolls); c != 0 {
+				return c
+			}
+
+			if c := cmp.Compare(i.Name, j.Name); c != 0 {
+				return c
+			}
+
+			return 0
 		})
 	}
 
