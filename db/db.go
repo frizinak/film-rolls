@@ -87,6 +87,15 @@ func (f Filter) MatchStock(s *Stock) bool {
 	return true
 }
 
+func (f Filter) MatchCamera(c *Camera) bool {
+	switch {
+	case f.not(f.CID, f.gID(c)):
+		return false
+	}
+
+	return true
+}
+
 func (f Filter) Match(id string, e Entry) bool {
 	scan := make([]string, 0, 1)
 	for _, v := range strings.Split(f.Scan, ",") {
@@ -102,12 +111,14 @@ func (f Filter) Match(id string, e Entry) bool {
 		return false
 	}
 
+	if !f.MatchCamera(e.Camera) {
+		return false
+	}
+
 	switch {
 	case f.ID != "" && f.not(f.ID, id):
 		return false
 	case f.not(f.LID, f.gID(e.Lab)):
-		return false
-	case f.not(f.CID, f.gID(e.Camera)):
 		return false
 	case f.notl(scan, eScan):
 		return false
@@ -563,7 +574,7 @@ func (db *DB) PrintTags(w io.Writer, filter Filter) {
 	})
 }
 
-func (db *DB) PrintStock(w io.Writer, conf TableConfig) {
+func (db *DB) PrintStocks(w io.Writer, conf TableConfig) {
 	t := table.New()
 	space := table.TermStr(" ")
 	line := table.TermStr(conf.Separator)
@@ -667,6 +678,136 @@ func (db *DB) PrintStock(w io.Writer, conf TableConfig) {
 			stock.Stock.Type.String(),
 			stock.Stock.ISO.String(),
 			stock.Stock.Company.Name,
+		)
+	}
+
+	if conf.Width != 0 {
+		t.SetFixedWidth(conf.Width)
+	}
+	t.WriteTo(w, "")
+}
+
+func (db *DB) PrintCameras(w io.Writer, conf TableConfig) {
+	t := table.New()
+	space := table.TermStr(" ")
+	line := table.TermStr(conf.Separator)
+	lline := table.TermStr(strings.TrimLeft(conf.Separator, " "))
+	rline := table.TermStr(strings.TrimRight(conf.Separator, " "))
+
+	if !conf.Pretty {
+		space = line
+	}
+
+	clr := func(seq string) string {
+		if conf.Color {
+			return seq
+		}
+		return ""
+	}
+
+	row := func(
+		cameraID, cameraBrand, cameraModel,
+		stockID, stockName, stockFormat, stockType, stockISO, stockCompany string,
+	) {
+		t.NewRow()
+
+		if conf.StartEndWithSeparator {
+			t.AddCol(table.ColFixed(lline))
+		}
+
+		t.AddCol(table.ColFixed(table.ColPreSuf(
+			table.TermStr(cameraID),
+			clr("\033[38;5;244m"),
+			clr("\033[0m"),
+		)))
+		t.AddCol(table.ColFixed(space))
+		t.AddCol(table.ColFixed(table.TermStr(cameraBrand)))
+		t.AddCol(table.ColFixed(space))
+		t.AddCol(table.ColFixed(table.TermStr(cameraModel)))
+		t.AddCol(table.ColFixed(line))
+
+		rowStock(t, conf, space, stockID, stockName, stockFormat, stockType, stockISO, stockCompany)
+
+		if conf.StartEndWithSeparator {
+			t.AddCol(table.ColFixed(rline))
+		}
+	}
+
+	if conf.Header {
+		row("CID", "Brand", "Model", "SID", "Stock", "Format", "Type", "ISO", "Manufacturer")
+	}
+	if conf.HeaderSep {
+		hs := ":---"
+		hsr := "---:"
+		row(hsr, hsr, hsr, hs, hs, hsr, hsr, hs, hs)
+	}
+
+	type c struct {
+		*Camera
+		*Stock
+		loaded time.Time
+	}
+
+	cams := make(map[ID]*c, len(db.Cameras))
+	for k, v := range db.Cameras {
+		cams[k] = &c{Camera: v}
+	}
+
+	db.Row(Filter{}, func(e Entry, id string) {
+		if !e.Loaded {
+			return
+		}
+
+		c := cams[e.Camera.ID]
+		c.Stock = e.Stock
+		c.loaded = e.LoadDate
+	})
+
+	sorted := make([]*c, 0, len(db.Cameras))
+	for _, cam := range cams {
+		sorted = append(sorted, cam)
+	}
+
+	slices.SortFunc(sorted, func(i, j *c) int {
+		li, lj := i.Stock == nil, j.Stock == nil
+		switch {
+		case li && !lj:
+			return -1
+		case !li && lj:
+			return 1
+		case i.loaded.Before(j.loaded):
+			return -1
+		case j.loaded.Before(i.loaded):
+			return 1
+		}
+
+		return cmp.Compare(i.Camera.ID, j.Camera.ID)
+	})
+
+	for _, cam := range sorted {
+		if !conf.Filter.MatchCamera(cam.Camera) {
+			continue
+		}
+		if conf.Filter.StatusLoaded && cam.Stock == nil {
+			continue
+		}
+		if conf.Filter.StatusUnloaded && cam.Stock != nil {
+			continue
+		}
+
+		var stockID, stockName, stockFormat, stockType, stockISO, stockCompany string
+		if cam.Stock != nil {
+			stockID = cam.Stock.ID.String()
+			stockName = cam.Stock.Name
+			stockFormat = cam.Stock.Format
+			stockType = cam.Stock.Type.String()
+			stockISO = cam.Stock.ISO.String()
+			stockCompany = cam.Stock.Company.Name
+		}
+
+		row(
+			cam.Camera.ID.String(), cam.Camera.Brand, cam.Camera.Model,
+			stockID, stockName, stockFormat, stockType, stockISO, stockCompany,
 		)
 	}
 

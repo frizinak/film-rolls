@@ -87,7 +87,7 @@ func main() {
 	}
 
 	allFlags := []flag{
-		{name: "m", options: func() []string { return []string{"log", "stock", "prices", "tags"} }},
+		{name: "m", options: func() []string { return []string{"log", "stocks", "prices", "cameras", "tags"} }},
 		{name: "l", options: file},
 		{name: "v", options: noFile},
 		{name: "md", options: noFile},

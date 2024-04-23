@@ -24,11 +24,12 @@ const (
 	formatPlain  = "plain"
 	formatPretty = "pretty"
 
-	modeLog    = "log"
-	modeStock  = "stock"
-	modePrices = "prices"
-	modeTags   = "tags"
-	modeIDs    = "ids"
+	modeLog     = "log"
+	modeStock   = "stocks"
+	modePrices  = "prices"
+	modeCameras = "cameras"
+	modeTags    = "tags"
+	modeIDs     = "ids"
 )
 
 func main() {
@@ -72,7 +73,7 @@ func main() {
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "%s <flags>:\n", os.Args[0])
 		fmt.Print(`  General:
-    -m <mode>               one of log, stock, prices or tags (default "log")
+    -m <mode>               one of log, stocks, cameras, prices or tags (default "log")
     -l <logfile>            (default ./rolls.log or $HOME/film-rolls.log)
     -v                      be verbose
 
@@ -166,7 +167,13 @@ func main() {
 	case modeStock:
 		conf.Width = termWidth()
 		run = func(db *db.DB) {
-			db.PrintStock(os.Stdout, conf)
+			db.PrintStocks(os.Stdout, conf)
+		}
+
+	case modeCameras:
+		conf.Width = termWidth()
+		run = func(db *db.DB) {
+			db.PrintCameras(os.Stdout, conf)
 		}
 
 	case modePrices:
