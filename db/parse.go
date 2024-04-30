@@ -2,9 +2,13 @@ package db
 
 import (
 	"bufio"
+	"cmp"
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -12,8 +16,8 @@ import (
 
 const dateFormat = "2006-01-02"
 
-func Parse(r io.Reader) (*DB, error) {
-	db := &DB{
+func mk() *DB {
+	return &DB{
 		Entries: make([]Entry, 0),
 
 		Companies: make(map[ID]*Company, 0),
@@ -22,7 +26,66 @@ func Parse(r io.Reader) (*DB, error) {
 		Labs:      make(map[ID]*Lab, 0),
 		Stores:    make(map[ID]*Store, 0),
 	}
+}
 
+func ParseDir(dir string) (*DB, error) {
+	d, err := os.Open(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	files := make([]string, 0, 1)
+	for {
+		e, err := d.Readdirnames(10)
+		for _, n := range e {
+			if !strings.HasSuffix(n, ".log") && !strings.HasSuffix(n, ".def") {
+				continue
+			}
+			files = append(files, n)
+		}
+
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// sort.Strings(files)
+	slices.SortFunc(files, func(a, b string) int {
+		sa, sb := a[len(a)-3:], b[len(b)-3:]
+		if c := cmp.Compare(sa, sb); c != 0 {
+			return c
+		}
+		return cmp.Compare(a, b)
+	})
+	db := mk()
+	for _, file := range files {
+		f, err := os.Open(filepath.Join(dir, file))
+		if err != nil {
+			return nil, err
+		}
+		if err = parse(db, file[:len(file)-4], f); err != nil {
+			return db, err
+		}
+	}
+
+	if db == nil {
+		err = errors.New("no log files found")
+	}
+
+	return db, err
+}
+
+func Parse(r io.Reader) (*DB, error) {
+	db := mk()
+	err := parse(db, "", r)
+	return db, err
+}
+
+func parse(db *DB, file string, r io.Reader) error {
 	var lastID ID
 	scans := make(map[uint]struct{})
 
@@ -63,7 +126,7 @@ func Parse(r io.Reader) (*DB, error) {
 		case keywordCompany:
 			c, ok := db.Companies[lastID]
 			if !ok {
-				return db, fmt.Errorf("no company with id %s", lastID)
+				return fmt.Errorf("no company with id %s", lastID)
 			}
 			c.Name = t
 			keyword = keywordNone
@@ -71,7 +134,7 @@ func Parse(r io.Reader) (*DB, error) {
 		case keywordStock:
 			s, ok := db.Stocks[lastID]
 			if !ok {
-				return db, fmt.Errorf("no stock with id %s", lastID)
+				return fmt.Errorf("no stock with id %s", lastID)
 			}
 			if s.Format == "" {
 				f := strings.Fields(t)
@@ -81,36 +144,36 @@ func Parse(r io.Reader) (*DB, error) {
 				if len(f) == 2 {
 					tp := StockType(strings.ToUpper(f[1]))
 					if tp != ColorNegative && tp != ColorPositive && tp != BWNegative && tp != BWPositive {
-						return db, fmt.Errorf("invalid stock type '%s' on line %d", f[1], line)
+						return fmt.Errorf("invalid stock type '%s' on line %d", f[1], line)
 					}
 
 					s.Type = tp
 				} else if len(f) > 2 {
-					return db, fmt.Errorf("invalid format on line %d", line)
+					return fmt.Errorf("invalid format on line %d", line)
 				}
 			} else if s.Name == "" {
 				s.Name = t
 			} else if s.Company == nil {
 				cid, err := MkID(t)
 				if err != nil {
-					return db, err
+					return err
 				}
 				s.Company = db.Companies[cid]
 				if s.Company == nil {
-					return db, fmt.Errorf("no company by id '%s'", t)
+					return fmt.Errorf("no company by id '%s'", t)
 				}
 			} else if s.ISO.Low == 0 {
 				p := strings.FieldsFunc(t, func(r rune) bool {
 					return r == ' ' || r == '-'
 				})
 				if len(p) > 2 {
-					return db, fmt.Errorf("invalid ISO line %d: '%s'", line, t)
+					return fmt.Errorf("invalid ISO line %d: '%s'", line, t)
 				}
 
 				for i := range p {
 					v, err := strconv.ParseUint(p[i], 10, 32)
 					if err != nil {
-						return db, fmt.Errorf("invalid integers in ISO line %d: '%s'", line, t)
+						return fmt.Errorf("invalid integers in ISO line %d: '%s'", line, t)
 					}
 					switch i {
 					case 0:
@@ -123,7 +186,7 @@ func Parse(r io.Reader) (*DB, error) {
 					s.ISO.High = s.ISO.Low
 				}
 				if s.ISO.High < s.ISO.Low {
-					return db, fmt.Errorf("invalid ISO range in line %d: '%s'", line, t)
+					return fmt.Errorf("invalid ISO range in line %d: '%s'", line, t)
 				}
 			} else if s.Rolls == 0 {
 				l := strings.FieldsFunc(t, func(r rune) bool {
@@ -134,7 +197,7 @@ func Parse(r io.Reader) (*DB, error) {
 				for _, s := range l {
 					val, err := strconv.Atoi(s)
 					if err != nil {
-						return db, fmt.Errorf("invalid number on line %d: %s", line, s)
+						return fmt.Errorf("invalid number on line %d: %s", line, s)
 					}
 					n += val
 				}
@@ -147,7 +210,7 @@ func Parse(r io.Reader) (*DB, error) {
 		case keywordCamera:
 			c, ok := db.Cameras[lastID]
 			if !ok {
-				return db, fmt.Errorf("no camera with id %s", lastID)
+				return fmt.Errorf("no camera with id %s", lastID)
 			}
 
 			if c.Brand == "" {
@@ -160,7 +223,7 @@ func Parse(r io.Reader) (*DB, error) {
 		case keywordLab:
 			l, ok := db.Labs[lastID]
 			if !ok {
-				return db, fmt.Errorf("no lab with id %s", lastID)
+				return fmt.Errorf("no lab with id %s", lastID)
 			}
 			l.Name = t
 			keyword = keywordNone
@@ -175,7 +238,7 @@ func Parse(r io.Reader) (*DB, error) {
 		case keywordStore:
 			s, ok := db.Stores[lastID]
 			if !ok {
-				return db, fmt.Errorf("no store with id %s", lastID)
+				return fmt.Errorf("no store with id %s", lastID)
 			}
 
 			if s.Name == "" {
@@ -185,26 +248,26 @@ func Parse(r io.Reader) (*DB, error) {
 
 			f := strings.Fields(t)
 			if len(f) != 3 {
-				return db, fmt.Errorf("invalid product on line %d: %s", line, t)
+				return fmt.Errorf("invalid product on line %d: %s", line, t)
 			}
 
 			sid, err := MkID(f[0])
 			if err != nil {
-				return db, err
+				return err
 			}
 			stock, ok := db.Stocks[sid]
 			if !ok {
-				return db, fmt.Errorf("no stock with id %s", sid)
+				return fmt.Errorf("no stock with id %s", sid)
 			}
 
 			amount, err := strconv.Atoi(f[1])
 			if err != nil {
-				return db, fmt.Errorf("invalid amount on line %d", line)
+				return fmt.Errorf("invalid amount on line %d", line)
 			}
 
 			price, err := strconv.ParseFloat(f[2], 64)
 			if err != nil {
-				return db, fmt.Errorf("invalid price on line %d", line)
+				return fmt.Errorf("invalid price on line %d", line)
 			}
 
 			precision := 2
@@ -233,9 +296,10 @@ func Parse(r io.Reader) (*DB, error) {
 		if d, err := time.Parse(dateFormat, p[0]); err == nil {
 			e, err := db.mkEntry(d, p, scans)
 			if err != nil {
-				return db, fmt.Errorf("%w: line %d: '%s'", err, line, t)
+				return fmt.Errorf("%w: line %d: '%s'", err, line, t)
 			}
 
+			e.File = file
 			e.Line = line
 			db.Entries = append(db.Entries, e)
 			keyword = keywordNote
@@ -243,51 +307,48 @@ func Parse(r io.Reader) (*DB, error) {
 		}
 
 		if len(p) != 2 {
-			return db, fmt.Errorf("invalid line %d: '%s'", line, t)
+			return fmt.Errorf("invalid line %d: '%s'", line, t)
 		}
 
 		keyword = p[0]
 		id, err := MkID(p[1])
 		if err != nil {
-			return db, err
+			return err
 		}
 
 		lastID = id
 		switch keyword {
 		case keywordCompany:
 			if _, ok := db.Companies[id]; ok {
-				return db, fmt.Errorf("duplicate company id '%s'", id.String())
+				return fmt.Errorf("duplicate company id '%s'", id.String())
 			}
 			db.Companies[id] = &Company{ID: id}
 		case keywordStock:
 			if _, ok := db.Stocks[id]; ok {
-				return db, fmt.Errorf("duplicate stock id '%s'", id.String())
+				return fmt.Errorf("duplicate stock id '%s'", id.String())
 			}
 			db.Stocks[id] = &Stock{ID: id}
 		case keywordCamera:
 			if _, ok := db.Cameras[id]; ok {
-				return db, fmt.Errorf("duplicate camera id '%s'", id.String())
+				return fmt.Errorf("duplicate camera id '%s'", id.String())
 			}
 			db.Cameras[id] = &Camera{ID: id}
 		case keywordLab:
 			if _, ok := db.Labs[id]; ok {
-				return db, fmt.Errorf("duplicate lab id '%s'", id.String())
+				return fmt.Errorf("duplicate lab id '%s'", id.String())
 			}
 			db.Labs[id] = &Lab{ID: id}
 		case keywordStore:
 			if _, ok := db.Stores[id]; ok {
-				return db, fmt.Errorf("duplicate store id '%s'", id.String())
+				return fmt.Errorf("duplicate store id '%s'", id.String())
 			}
 			db.Stores[id] = &Store{ID: id}
 		default:
-			return db, fmt.Errorf("invalid keyword: '%s'", keyword)
+			return fmt.Errorf("invalid keyword: '%s'", keyword)
 		}
 	}
 
-	if err := s.Err(); err != nil {
-		return db, err
-	}
-	return db, nil
+	return s.Err()
 }
 
 func (db *DB) mkEntry(d time.Time, p []string, scans map[uint]struct{}) (Entry, error) {

@@ -21,6 +21,7 @@ type Filter struct {
 	SID string
 	CID string
 
+	File string
 	Scan string
 
 	StatusUndev     bool
@@ -121,6 +122,8 @@ func (f Filter) Match(id string, e Entry) bool {
 	case f.not(f.LID, f.gID(e.Lab)):
 		return false
 	case f.notl(scan, eScan):
+		return false
+	case f.not(f.File, e.File):
 		return false
 	case f.StatusUndev && !e.Lab.None():
 		return false
@@ -280,6 +283,7 @@ type Entry struct {
 
 	Loaded bool
 
+	File string
 	Scan uint
 
 	Line uint
@@ -379,7 +383,7 @@ func (db *DB) PrintTable(w io.Writer, conf TableConfig) {
 		cameraID, cameraBrand, cameraModel,
 		stockID, stockName, stockFormat, stockType, stockISO, stockCompany,
 		labID, labName, labInDate, labOutDate,
-		scan, linenr,
+		file, scan, linenr,
 		note string,
 	) {
 		t.NewRow()
@@ -443,6 +447,8 @@ func (db *DB) PrintTable(w io.Writer, conf TableConfig) {
 
 		t.AddCol(table.ColFixed(line))
 
+		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(file))))
+		t.AddCol(table.ColFixed(line))
 		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(scan))))
 		t.AddCol(table.ColFixed(line))
 		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(linenr))))
@@ -466,7 +472,7 @@ func (db *DB) PrintTable(w io.Writer, conf TableConfig) {
 			"CID", "Brand", "Model",
 			"SID", "Stock", "Format", "Type", "ISO", "Manufacturer",
 			"LID", "Lab Name", "Lab in", "Lab out",
-			"Scan", "Line",
+			"File", "Scan", "Line",
 			"Notes",
 		)
 	}
@@ -481,7 +487,7 @@ func (db *DB) PrintTable(w io.Writer, conf TableConfig) {
 			hs, hs, hs,
 			hs, hs, hs, hs, hs, hs,
 			hs, hs, hs, hs,
-			hs, hs,
+			hs, hs, hs,
 			hs,
 		)
 	}
@@ -520,7 +526,7 @@ func (db *DB) PrintTable(w io.Writer, conf TableConfig) {
 			e.Camera.ID.String(), e.Camera.Brand, e.Camera.Model,
 			e.Stock.ID.String(), e.Stock.Name, e.Stock.Format, e.Stock.Type.String(), e.Stock.ISO.String(), e.Stock.Company.Name,
 			labID, labName, labInDate, labOutDate,
-			scan, fmt.Sprintf("%d", e.Line),
+			e.File, scan, fmt.Sprintf("%d", e.Line),
 			note1,
 		)
 
@@ -536,7 +542,7 @@ func (db *DB) PrintTable(w io.Writer, conf TableConfig) {
 					"", "", "",
 					"", "", "", "", "", "",
 					"", "", "", "",
-					"", "",
+					"", "", "",
 					note,
 				)
 			}
@@ -925,6 +931,10 @@ func (db *DB) PrintPrices(w io.Writer, conf TableConfig) {
 	}
 
 	for _, p := range sorted {
+		if !conf.Filter.MatchStock(p.Stock) {
+			continue
+		}
+
 		s := db.Stores[p.StoreID]
 		best := cheapest[p.ID] == p.PerUnit
 		row(

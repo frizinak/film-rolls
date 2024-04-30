@@ -38,11 +38,11 @@ func main() {
 	var mode string
 	var md bool
 	var nh bool
-	var dbFile string
+	var dbDir string
 
 	conf := db.TableConfigDefault()
 	flag.BoolVar(&verbose, "v", false, "")
-	flag.StringVar(&dbFile, "l", "", "")
+	flag.StringVar(&dbDir, "l", "", "")
 	flag.StringVar(&mode, "m", modeLog, "")
 	flag.StringVar(&format, "f", formatPretty, "")
 	flag.StringVar(&conf.Separator, "s", conf.Separator, "")
@@ -55,6 +55,7 @@ func main() {
 	flag.StringVar(&conf.Filter.LID, "lid", "", "")
 	flag.StringVar(&conf.Filter.SID, "sid", "", "")
 	flag.StringVar(&conf.Filter.CID, "cid", "", "")
+	flag.StringVar(&conf.Filter.File, "file", "", "")
 	flag.StringVar(&conf.Filter.Scan, "scan", "", "")
 	flag.StringVar(&conf.Filter.StockFormat, "format", "", "")
 
@@ -74,7 +75,9 @@ func main() {
 		fmt.Fprintf(os.Stderr, "%s <flags>:\n", os.Args[0])
 		fmt.Print(`  General:
     -m <mode>               one of log, stocks, cameras, prices or tags (default "log")
-    -l <logfile>            (default ./rolls.log or $HOME/film-rolls.log)
+    -l <logdirectory>       directory containing your .log and .def files
+                            which are read in alphabetical order (first .def then .log).
+                            (default $HOME/film-rolls)
     -v                      be verbose
 
   Output:
@@ -90,8 +93,9 @@ func main() {
     -cid    <camera-ids>    comma separated list of ids to filter on
     -lid    <lab-ids>       comma separated list of ids to filter on
     -sid    <stock-ids>     comma separated list of ids to filter on
-    -scan   <scan-numbers>  comma separated list of ids to filter on
-    -format <stock-formats> comma separated list of ids to filter on
+    -file   <filenames>     comma separated list of files to filter on (without .log extension)
+    -scan   <scan-numbers>  comma separated list of scan pages to filter on
+    -format <stock-formats> comma separated list of formats to filter on
     -dev                    show only developed rolls
     -undev                  show only undeveloped rolls
     -lab                    show only rolls at the lab
@@ -107,15 +111,12 @@ func main() {
 	}
 	flag.Parse()
 
-	if dbFile == "" {
-		dbFile = "rolls.log"
-		if _, err := os.Stat(dbFile); os.IsNotExist(err) {
-			h, err := os.UserHomeDir()
-			if err != nil {
-				exit(fmt.Errorf("could not find a log file: %w", err))
-			}
-			dbFile = filepath.Join(h, "film-rolls.log")
+	if dbDir == "" {
+		h, err := os.UserHomeDir()
+		if err != nil {
+			exit(fmt.Errorf("could not find a log file: %w", err))
 		}
+		dbDir = filepath.Join(h, "film-rolls")
 	}
 
 	if format != formatPlain && format != formatPretty {
@@ -159,7 +160,6 @@ func main() {
 	switch mode {
 	case modeLog:
 		conf.Width = termWidth()
-
 		run = func(db *db.DB) {
 			db.PrintTable(os.Stdout, conf)
 		}
@@ -209,14 +209,11 @@ func main() {
 	}
 
 	if verbose {
-		fmt.Fprintf(os.Stderr, "Opening %s\n", dbFile)
+		fmt.Fprintf(os.Stderr, "Opening %s\n", dbDir)
 	}
 
 	bench := time.Now()
-	f, err := os.Open(dbFile)
-	exit(err)
-	db, err := db.Parse(f)
-	f.Close()
+	db, err := db.ParseDir(dbDir)
 	exit(err)
 
 	run(db)
