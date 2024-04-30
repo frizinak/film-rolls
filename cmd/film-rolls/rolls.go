@@ -189,14 +189,36 @@ func main() {
 
 	case modeIDs:
 		run = func(d *db.DB) {
+			fileUniq := make(map[string]struct{}, 0)
+			formatUniq := make(map[string]struct{}, 0)
+
 			d.Row(db.Filter{}, func(e db.Entry, id string) {
 				fmt.Println("id", id)
+
+				func() {
+					if e.File == "" {
+						return
+					}
+					if _, ok := fileUniq[e.File]; ok {
+						return
+					}
+					fileUniq[e.File] = struct{}{}
+					fmt.Println("file", e.File)
+				}()
 			})
 			for id := range d.Cameras {
 				fmt.Println("cid", id)
 			}
-			for id := range d.Stocks {
+			for id, s := range d.Stocks {
 				fmt.Println("sid", id)
+
+				func() {
+					if _, ok := formatUniq[s.Format]; ok {
+						return
+					}
+					formatUniq[s.Format] = struct{}{}
+					fmt.Println("format", s.Format)
+				}()
 			}
 			for id := range d.Labs {
 				fmt.Println("lid", id)

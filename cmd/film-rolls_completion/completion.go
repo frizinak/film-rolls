@@ -68,7 +68,7 @@ func main() {
 				l[typ] = append(l[typ], val)
 			}
 
-			cmd.Wait()
+			_ = cmd.Wait()
 			return l
 		}
 
@@ -100,8 +100,9 @@ func main() {
 		{name: "cid", options: func() []string { return get("cid") }},
 		{name: "lid", options: func() []string { return get("lid") }},
 		{name: "sid", options: func() []string { return get("sid") }},
+		{name: "file", options: func() []string { return get("file") }},
 		{name: "scan", options: noFile},
-		{name: "format", options: noFile},
+		{name: "format", options: func() []string { return get("format") }},
 		{name: "dev", options: noFile},
 		{name: "undev", options: noFile},
 		{name: "lab", options: noFile},
