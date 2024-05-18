@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -53,7 +54,6 @@ func ParseDir(dir string) (*DB, error) {
 		}
 	}
 
-	// sort.Strings(files)
 	slices.SortFunc(files, func(a, b string) int {
 		sa, sb := a[len(a)-3:], b[len(b)-3:]
 		if c := cmp.Compare(sa, sb); c != 0 {
@@ -73,15 +73,18 @@ func ParseDir(dir string) (*DB, error) {
 	}
 
 	if db == nil {
-		err = errors.New("no log files found")
+		return db, errors.New("no log files found")
 	}
 
-	return db, err
+	sort.Sort(db.Entries)
+
+	return db, nil
 }
 
 func Parse(r io.Reader) (*DB, error) {
 	db := mk()
 	err := parse(db, "", r)
+	sort.Sort(db.Entries)
 	return db, err
 }
 

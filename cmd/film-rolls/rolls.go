@@ -88,14 +88,18 @@ func main() {
     -short                  shorter output
     -notes                  show notes
 
-  Filter:
-    -id     <roll-ids>      comma separated list of ids to filter on
-    -cid    <camera-ids>    comma separated list of ids to filter on
-    -lid    <lab-ids>       comma separated list of ids to filter on
-    -sid    <stock-ids>     comma separated list of ids to filter on
-    -file   <filenames>     comma separated list of files to filter on (without .log extension)
-    -scan   <scan-numbers>  comma separated list of scan pages to filter on
-    -format <stock-formats> comma separated list of formats to filter on
+  Query Filter:
+    -id     <QUERY>         filter by id
+    -cid    <QUERY>         filter by camera id
+    -lid    <QUERY>         filter by lab id
+    -sid    <QUERY>         filter by stock id
+    -file   <QUERY>         filter by filename
+    -scan   <QUERY>         filter by scan
+    -format <QUERY>         filter by film format
+             QUERY: comma separated list of individual queries, supports * wildcards
+                    e.g.: -id 9f*,da930
+
+  Boolean Filter:
     -dev                    show only developed rolls
     -undev                  show only undeveloped rolls
     -lab                    show only rolls at the lab

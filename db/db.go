@@ -15,6 +15,35 @@ import (
 	"github.com/frizinak/film-rolls/table"
 )
 
+func wcGen(str string) []string {
+	return strings.Split(str, "*")
+}
+
+func wcMatch(query []string, target string) bool {
+	if len(query) == 1 {
+		return target == query[0]
+	}
+
+	for i, p := range query {
+		method := strings.Contains
+		if i == 0 {
+			method = strings.HasPrefix
+		}
+		if i == len(query)-1 {
+			method = strings.HasSuffix
+		}
+
+		if p == "" {
+			continue
+		}
+
+		if !method(target, p) {
+			return false
+		}
+	}
+	return true
+}
+
 type Filter struct {
 	ID  string
 	LID string
@@ -57,8 +86,9 @@ func (f Filter) notl(s []string, val string) bool {
 	if val == "" {
 		return true
 	}
+
 	for _, v := range s {
-		if val == v {
+		if wcMatch(wcGen(v), val) {
 			return false
 		}
 	}
@@ -117,11 +147,13 @@ func (f Filter) Match(id string, e Entry) bool {
 	}
 
 	switch {
-	case f.ID != "" && f.not(f.ID, id):
+	case f.not(f.ID, id):
 		return false
 	case f.not(f.LID, f.gID(e.Lab)):
 		return false
 	case f.notl(scan, eScan):
+		return false
+	case f.not(f.File, e.File):
 		return false
 	case f.not(f.File, e.File):
 		return false
@@ -314,8 +346,29 @@ func MkID(str string) (ID, error) {
 	return ID(b), nil
 }
 
+type Entries []Entry
+
+func (e Entries) Len() int      { return len(e) }
+func (e Entries) Swap(i, j int) { e[i], e[j] = e[j], e[i] }
+func (e Entries) Less(i, j int) bool {
+	a, b := e[i], e[j]
+	if a.LoadDate.Before(b.LoadDate) {
+		return true
+	} else if b.LoadDate.Before(a.LoadDate) {
+		return false
+	}
+
+	if a.File < b.File {
+		return true
+	} else if a.File > b.File {
+		return false
+	}
+
+	return a.Line < b.Line
+}
+
 type DB struct {
-	Entries []Entry
+	Entries Entries
 
 	Companies map[ID]*Company
 	Stocks    map[ID]*Stock
