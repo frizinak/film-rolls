@@ -165,7 +165,7 @@ func main() {
 	case modeLog:
 		conf.Width = termWidth()
 		run = func(db *db.DB) {
-			db.PrintTable(os.Stdout, conf)
+			db.PrintLogs(os.Stdout, conf)
 		}
 
 	case modeStock:
