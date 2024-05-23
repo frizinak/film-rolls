@@ -86,6 +86,10 @@ func main() {
 		}
 	}
 
+	date := func() []string {
+		return get("date")
+	}
+
 	allFlags := []flag{
 		{name: "m", options: func() []string { return []string{"log", "stocks", "prices", "cameras", "tags"} }},
 		{name: "l", options: file},
@@ -114,6 +118,12 @@ func main() {
 		{name: "bw", options: noFile},
 		{name: "pos", options: noFile},
 		{name: "neg", options: noFile},
+		{name: "since", options: date},
+		{name: "until", options: date},
+		{name: "since-lab-in", options: date},
+		{name: "until-lab-in", options: date},
+		{name: "since-lab-out", options: date},
+		{name: "until-lab-out", options: date},
 	}
 
 	var opts []string

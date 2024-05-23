@@ -11,6 +11,8 @@ import (
 	"github.com/frizinak/film-rolls/db"
 )
 
+const dateFormat = "2006-01-02"
+
 func exit(err error) {
 	if err == nil {
 		return
@@ -71,6 +73,15 @@ func main() {
 	flag.BoolVar(&conf.Filter.StockPos, "pos", false, "")
 	flag.BoolVar(&conf.Filter.StockNeg, "neg", false, "")
 
+	flag.StringVar(&conf.Filter.Since, "since", "", "")
+	flag.StringVar(&conf.Filter.Until, "until", "", "")
+
+	flag.StringVar(&conf.Filter.SinceLabIn, "since-lab-in", "", "")
+	flag.StringVar(&conf.Filter.UntilLabIn, "until-lab-in", "", "")
+
+	flag.StringVar(&conf.Filter.SinceLabOut, "since-lab-out", "", "")
+	flag.StringVar(&conf.Filter.UntilLabOut, "until-lab-out", "", "")
+
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "%s <flags>:\n", os.Args[0])
 		fmt.Print(`  General:
@@ -88,7 +99,7 @@ func main() {
     -short                  shorter output
     -notes                  show notes
 
-  Query Filter:
+  Query Filters:
     -id     <QUERY>         filter by id
     -cid    <QUERY>         filter by camera id
     -lid    <QUERY>         filter by lab id
@@ -96,21 +107,30 @@ func main() {
     -file   <QUERY>         filter by filename
     -scan   <QUERY>         filter by scan
     -format <QUERY>         filter by film format
-             QUERY: comma separated list of individual queries, supports * wildcards
-                    e.g.: -id 9f*,da930
+             QUERY:         comma separated list of individual queries, supports * wildcards
+                            e.g.: -id 9f*,da930
 
-  Boolean Filter:
-    -dev                    show only developed rolls
-    -undev                  show only undeveloped rolls
-    -lab                    show only rolls at the lab
-    -scanned                show only scanned rolls
-    -unscanned              show only unscanned rolls
-    -loaded                 show only loaded rolls
-    -unloaded               show only unloaded rolls
-    -color                  show only color rolls
-    -bw                     show only b/w rolls
-    -pos                    show only slides
-    -neg                    show only negatives
+  Date Filters:
+    -since         <DATE>   only show rolls loaded in a camera starting from this date
+    -until         <DATE>   only show rolls loaded in a camera until this date (inclusive)
+    -since-lab-in  <DATE>   only show rolls delivered to a lab starting from this date
+    -until-lab-in  <DATE>   only show rolls delivered to a lab until this date (inclusive)
+    -since-lab-out <DATE>   only show rolls retrieved from a lab starting from this date
+    -until-lab-out <DATE>   only show rolls retrieved from a lab until this date (inclusive)
+	                DATE:   YYYY-MM-DD
+
+  Boolean Filters:
+    -dev                    only show developed rolls
+    -undev                  only show undeveloped rolls
+    -lab                    only show rolls at the lab
+    -scanned                only show scanned rolls
+    -unscanned              only show unscanned rolls
+    -loaded                 only show loaded rolls
+    -unloaded               only show unloaded rolls
+    -color                  only show color rolls
+    -bw                     only show b/w rolls
+    -pos                    only show slides
+    -neg                    only show negatives
 `)
 	}
 	flag.Parse()
@@ -192,12 +212,27 @@ func main() {
 		}
 
 	case modeIDs:
+		nilTime := time.Time{}
 		run = func(d *db.DB) {
 			fileUniq := make(map[string]struct{}, 0)
 			formatUniq := make(map[string]struct{}, 0)
+			dateUniq := make(map[string]struct{}, 0)
+
+			date := func(d time.Time) {
+				if d == nilTime {
+					return
+				}
+				s := d.Format(dateFormat)
+				if _, ok := dateUniq[s]; !ok {
+					fmt.Println("date", s)
+				}
+			}
 
 			d.Row(db.Filter{}, func(e db.Entry, id string) {
 				fmt.Println("id", id)
+				date(e.LoadDate)
+				date(e.LabInDate)
+				date(e.LabOutDate)
 
 				func() {
 					if e.File == "" {

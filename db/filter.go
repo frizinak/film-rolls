@@ -57,6 +57,10 @@ type Filter struct {
 	StockBW     bool
 	StockNeg    bool
 	StockPos    bool
+
+	Since, Until             string
+	SinceLabIn, UntilLabIn   string
+	SinceLabOut, UntilLabOut string
 }
 
 type idable interface {
@@ -137,6 +141,23 @@ func (f Filter) Match(id string, e Entry) bool {
 		return false
 	}
 
+	ndate := func(s string, d time.Time, cmp func(time.Time) bool) bool {
+		if s == "" {
+			return false
+		}
+
+		if d == (time.Time{}) {
+			return true
+		}
+
+		t, err := time.Parse(dateFormat, s)
+		if err != nil {
+			return true
+		}
+
+		return cmp(t)
+	}
+
 	switch {
 	case f.not(f.ID, id):
 		return false
@@ -161,6 +182,18 @@ func (f Filter) Match(id string, e Entry) bool {
 	case f.StatusLoaded && !e.Loaded:
 		return false
 	case f.StatusUnloaded && e.Loaded:
+		return false
+	case ndate(f.Since, e.LoadDate, e.LoadDate.Before):
+		return false
+	case ndate(f.Until, e.LoadDate, e.LoadDate.After):
+		return false
+	case ndate(f.SinceLabIn, e.LabInDate, e.LabInDate.Before):
+		return false
+	case ndate(f.UntilLabIn, e.LabInDate, e.LabInDate.After):
+		return false
+	case ndate(f.SinceLabOut, e.LabOutDate, e.LabOutDate.Before):
+		return false
+	case ndate(f.UntilLabOut, e.LabOutDate, e.LabOutDate.After):
 		return false
 	}
 
