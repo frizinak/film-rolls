@@ -211,15 +211,7 @@ type DB struct {
 
 func (db *DB) Row(filter Filter, row func(e Entry, id string)) {
 	ids := make(map[string]struct{})
-	loaded := make(map[ID]int)
-	for i, e := range db.Entries {
-		loaded[e.Camera.ID] = -1
-		if e.Lab == nil {
-			loaded[e.Camera.ID] = i
-		}
-	}
-
-	for i, e := range db.Entries {
+	for _, e := range db.Entries {
 		var id string
 		const n = 5
 		try := 0
@@ -233,7 +225,6 @@ func (db *DB) Row(filter Filter, row func(e Entry, id string)) {
 
 		ids[id] = struct{}{}
 
-		e.Loaded = loaded[e.Camera.ID] == i
 		if !filter.Match(id, e) {
 			continue
 		}

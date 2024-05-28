@@ -76,7 +76,7 @@ func ParseDir(dir string) (*DB, error) {
 		return db, errors.New("no log files found")
 	}
 
-	sort.Sort(db.Entries)
+	finalize(db)
 
 	return db, nil
 }
@@ -84,8 +84,24 @@ func ParseDir(dir string) (*DB, error) {
 func Parse(r io.Reader) (*DB, error) {
 	db := mk()
 	err := parse(db, "", r)
-	sort.Sort(db.Entries)
+	finalize(db)
 	return db, err
+}
+
+func finalize(db *DB) {
+	sort.Sort(db.Entries)
+
+	loaded := make(map[ID]int)
+	for i, e := range db.Entries {
+		loaded[e.Camera.ID] = -1
+		if e.Lab == nil {
+			loaded[e.Camera.ID] = i
+		}
+	}
+
+	for i, e := range db.Entries {
+		db.Entries[i].Loaded = loaded[e.Camera.ID] == i
+	}
 }
 
 func parse(db *DB, file string, r io.Reader) error {
