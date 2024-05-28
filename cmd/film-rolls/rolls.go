@@ -117,7 +117,7 @@ func main() {
     -until-lab-in  <DATE>   only show rolls delivered to a lab until this date (inclusive)
     -since-lab-out <DATE>   only show rolls retrieved from a lab starting from this date
     -until-lab-out <DATE>   only show rolls retrieved from a lab until this date (inclusive)
-	                DATE:   YYYY-MM-DD
+                    DATE:   YYYY-MM-DD
 
   Boolean Filters:
     -dev                    only show developed rolls
