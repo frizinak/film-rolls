@@ -52,11 +52,12 @@ type Filter struct {
 	StatusLoaded    bool
 	StatusUnloaded  bool
 
-	StockFormat string
-	StockColor  bool
-	StockBW     bool
-	StockNeg    bool
-	StockPos    bool
+	StockFormat    string
+	StockColor     bool
+	StockBW        bool
+	StockNeg       bool
+	StockPos       bool
+	StockAvailable bool
 
 	Since, Until             string
 	SinceLabIn, UntilLabIn   string

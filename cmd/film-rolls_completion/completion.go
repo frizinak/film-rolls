@@ -118,6 +118,7 @@ func main() {
 		{name: "bw", options: noFile},
 		{name: "pos", options: noFile},
 		{name: "neg", options: noFile},
+		{name: "available", options: noFile},
 		{name: "since", options: date},
 		{name: "until", options: date},
 		{name: "since-lab-in", options: date},

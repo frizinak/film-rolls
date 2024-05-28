@@ -401,6 +401,10 @@ func (db *DB) PrintStocks(w io.Writer, conf TableConfig) {
 			continue
 		}
 
+		if conf.Filter.StockAvailable && stock.Rolls == 0 {
+			continue
+		}
+
 		row(
 			strconv.Itoa(stock.Rolls),
 			strconv.Itoa(stock.Stock.Rolls-stock.Rolls),

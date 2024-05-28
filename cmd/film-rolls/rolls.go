@@ -72,6 +72,7 @@ func main() {
 	flag.BoolVar(&conf.Filter.StockBW, "bw", false, "")
 	flag.BoolVar(&conf.Filter.StockPos, "pos", false, "")
 	flag.BoolVar(&conf.Filter.StockNeg, "neg", false, "")
+	flag.BoolVar(&conf.Filter.StockAvailable, "available", false, "")
 
 	flag.StringVar(&conf.Filter.Since, "since", "", "")
 	flag.StringVar(&conf.Filter.Until, "until", "", "")
@@ -131,6 +132,7 @@ func main() {
     -bw                     only show b/w rolls
     -pos                    only show slides
     -neg                    only show negatives
+    -available              only show rolls we have [-m stocks]
 `)
 	}
 	flag.Parse()
