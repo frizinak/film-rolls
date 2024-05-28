@@ -34,6 +34,16 @@ var defaultConf = TableConfig{
 
 func TableConfigDefault() TableConfig { return defaultConf }
 
+const mdHeaderSep = ":---"
+
+func mdHeaderRightSep(headerSep string) string {
+	if headerSep == mdHeaderSep {
+		return "---:"
+	}
+
+	return headerSep
+}
+
 func rowStock(
 	t *table.Table,
 	conf TableConfig,
@@ -55,9 +65,9 @@ func rowStock(
 
 	if !conf.Short {
 		t.AddCol(table.ColFixed(space))
-		t.AddCol(table.ColAlignRight(table.ColFixed(table.TermStr(stockFormat))))
+		t.AddCol(table.ColAlignRight(table.ColFixed(table.TermStr(mdHeaderRightSep(stockFormat)))))
 		t.AddCol(table.ColFixed(space))
-		t.AddCol(table.ColAlignRight(table.ColFixed(table.TermStr(stockType))))
+		t.AddCol(table.ColAlignRight(table.ColFixed(table.TermStr(mdHeaderRightSep(stockType)))))
 		t.AddCol(table.ColFixed(space))
 		t.AddCol(table.ColFixed(table.ColPreSuf(
 			table.TermStr(stockCompany),
@@ -71,7 +81,7 @@ func rowStock(
 			clr("\033[0m"),
 		)))
 		t.AddCol(table.ColFixed(space))
-		t.AddCol(table.ColAlignRight(table.ColFixed(table.TermStr(stockISO))))
+		t.AddCol(table.ColAlignRight(table.ColFixed(table.TermStr(mdHeaderRightSep(stockISO)))))
 	}
 }
 
@@ -165,11 +175,11 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 
 		t.AddCol(table.ColFixed(line))
 
-		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(file))))
+		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(mdHeaderRightSep(file)))))
 		t.AddCol(table.ColFixed(line))
-		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(scan))))
+		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(mdHeaderRightSep(scan)))))
 		t.AddCol(table.ColFixed(line))
-		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(linenr))))
+		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(mdHeaderRightSep(linenr)))))
 
 		if conf.Notes {
 			t.AddCol(table.ColFixed(line))
@@ -196,7 +206,7 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 	}
 
 	if conf.HeaderSep {
-		hs := ":---"
+		hs := mdHeaderSep
 		row(
 			false,
 			hs,
@@ -319,13 +329,13 @@ func (db *DB) PrintStocks(w io.Writer, conf TableConfig) {
 			t.AddCol(table.ColFixed(lline))
 		}
 
-		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(available))))
+		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(mdHeaderRightSep(available)))))
 		t.AddCol(table.ColFixed(line))
 
-		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(shot))))
+		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(mdHeaderRightSep(shot)))))
 		t.AddCol(table.ColFixed(line))
 
-		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(total))))
+		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(mdHeaderRightSep(total)))))
 		t.AddCol(table.ColFixed(line))
 
 		rowStock(t, conf, space, stockID, stockName, stockFormat, stockType, stockISO, stockCompany)
@@ -339,9 +349,8 @@ func (db *DB) PrintStocks(w io.Writer, conf TableConfig) {
 		row("Avail", "Shot", "Total", "SID", "Stock", "Format", "Type", "ISO", "Manufacturer")
 	}
 	if conf.HeaderSep {
-		hs := ":---"
-		hsr := "---:"
-		row(hsr, hsr, hsr, hs, hs, hsr, hsr, hs, hs)
+		hs := mdHeaderSep
+		row(hs, hs, hs, hs, hs, hs, hs, hs, hs)
 	}
 
 	type s struct {
@@ -463,9 +472,8 @@ func (db *DB) PrintCameras(w io.Writer, conf TableConfig) {
 		row("CID", "Brand", "Model", "SID", "Stock", "Format", "Type", "ISO", "Manufacturer")
 	}
 	if conf.HeaderSep {
-		hs := ":---"
-		hsr := "---:"
-		row(hsr, hsr, hsr, hs, hs, hsr, hsr, hs, hs)
+		hs := mdHeaderSep
+		row(hs, hs, hs, hs, hs, hs, hs, hs, hs)
 	}
 
 	type c struct {
@@ -573,16 +581,16 @@ func (db *DB) PrintPrices(w io.Writer, conf TableConfig) {
 		}
 
 		t.AddCol(table.ColFixed(table.ColPreSuf(
-			table.ColAlignRight(table.TermStr(perUnit)),
+			table.ColAlignRight(table.TermStr(mdHeaderRightSep(perUnit))),
 			pricePrefix,
 			priceSuffix,
 		)))
 		t.AddCol(table.ColFixed(line))
 
-		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(price))))
+		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(mdHeaderRightSep(price)))))
 		t.AddCol(table.ColFixed(line))
 
-		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(amount))))
+		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(mdHeaderRightSep(amount)))))
 		t.AddCol(table.ColFixed(line))
 
 		rowStock(t, conf, space, stockID, stockName, stockFormat, stockType, stockISO, stockCompany)
@@ -609,14 +617,13 @@ func (db *DB) PrintPrices(w io.Writer, conf TableConfig) {
 		)
 	}
 	if conf.HeaderSep {
-		hs := ":---"
-		hsr := "---:"
+		hs := mdHeaderSep
 		row(
 			false,
 			hs,
-			hsr, hsr, hsr,
+			hs, hs, hs,
 			hs,
-			hs, hs, hsr, hsr, hs, hs,
+			hs, hs, hs, hs, hs, hs,
 		)
 	}
 
@@ -655,8 +662,12 @@ func (db *DB) PrintPrices(w io.Writer, conf TableConfig) {
 
 		s := db.Stores[p.StoreID]
 		best := cheapest[p.ID] == p.PerUnit
+		bestPriceString := "no"
+		if best {
+			bestPriceString = "yes"
+		}
 		row(
-			best, "yes",
+			best, bestPriceString,
 			strconv.FormatFloat(p.PerUnit, 'f', p.Precision, 64),
 			strconv.FormatFloat(p.Price, 'f', p.Precision, 64),
 			strconv.Itoa(p.Amount),
