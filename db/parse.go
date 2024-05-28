@@ -106,6 +106,7 @@ func parse(db *DB, file string, r io.Reader) error {
 	s.Split(bufio.ScanLines)
 	var keyword string
 	var line uint
+	var noteIndent int
 	for s.Scan() {
 		line++
 		raw := s.Text()
@@ -235,8 +236,29 @@ func parse(db *DB, file string, r io.Reader) error {
 			if indent < 2 {
 				break
 			}
+
 			i := len(db.Entries) - 1
-			db.Entries[i].Note = append(db.Entries[i].Note, t)
+			spaces := indent - noteIndent
+			if len(db.Entries[i].Note) == 0 {
+				noteIndent = indent
+				spaces = 0
+			}
+			if spaces < 0 {
+				spaces = 0
+			}
+
+			str := make([]byte, len(t)+spaces)
+			{
+				i := 0
+				for ; i < spaces; i++ {
+					str[i] = ' '
+				}
+				for n := 0; n < len(t); n++ {
+					str[i+n] = t[n]
+				}
+			}
+
+			db.Entries[i].Note = append(db.Entries[i].Note, string(str))
 			continue
 		case keywordStore:
 			s, ok := db.Stores[lastID]
@@ -306,6 +328,7 @@ func parse(db *DB, file string, r io.Reader) error {
 			e.Line = line
 			db.Entries = append(db.Entries, e)
 			keyword = keywordNote
+			noteIndent = 0
 			continue
 		}
 
