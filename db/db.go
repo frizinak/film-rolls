@@ -44,21 +44,7 @@ func (s StockType) BlackWhite() bool { return s == BWNegative || s == BWPositive
 func (s StockType) Color() bool      { return s == ColorNegative || s == ColorPositive }
 func (s StockType) Neg() bool        { return s == BWNegative || s == ColorNegative }
 func (s StockType) Pos() bool        { return s == BWPositive || s == ColorPositive }
-
-func (s StockType) String() string {
-	switch s {
-	case ColorNegative:
-		return "CLR-"
-	case ColorPositive:
-		return "CLR+"
-	case BWNegative:
-		return "B/W-"
-	case BWPositive:
-		return "B/W+"
-	}
-
-	return ""
-}
+func (s StockType) String() string   { return string(s) }
 
 const (
 	ColorNegative = "C"
