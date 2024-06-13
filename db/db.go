@@ -123,6 +123,8 @@ func (c *Camera) Short() string {
 }
 
 type Entry struct {
+	Hide bool
+
 	LoadDate   time.Time
 	LabInDate  time.Time
 	LabOutDate time.Time

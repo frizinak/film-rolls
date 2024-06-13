@@ -348,6 +348,11 @@ func parse(db *DB, file string, r io.Reader) error {
 
 		p := strings.Fields(t)
 
+		hide := p[0] == "!" && len(p) > 1
+		if hide {
+			p = p[1:]
+		}
+
 		// UTC!
 		if d, err := time.Parse(dateFormat, p[0]); err == nil {
 			e, err := db.mkEntry(d, p, scans)
@@ -355,6 +360,7 @@ func parse(db *DB, file string, r io.Reader) error {
 				return fmt.Errorf("%w: line %d: '%s'", err, line, t)
 			}
 
+			e.Hide = hide
 			e.File = file
 			e.Line = line
 			db.Entries = append(db.Entries, e)

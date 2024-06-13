@@ -251,6 +251,10 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 	}
 
 	rows(func(e Entry) {
+		if e.Hide {
+			return
+		}
+
 		var labName, labInDate, labOutDate string
 		labID := "N/A"
 		if !e.Lab.None() {
