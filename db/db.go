@@ -145,14 +145,17 @@ type Entry struct {
 	Camera *Camera
 	Lab    *Lab
 
-	Loaded bool
-
 	File string
 	Scan uint
 
 	Line uint
 
 	Note []string
+
+	State struct {
+		ID     string
+		Loaded bool
+	}
 }
 
 func (e Entry) ID(i int) string {
@@ -209,27 +212,13 @@ type DB struct {
 	Stores    map[ID]*Store
 }
 
-func (db *DB) Row(filter Filter, row func(e Entry, id string)) {
-	ids := make(map[string]struct{})
+func (db *DB) Row(filter Filter, row func(e Entry)) {
 	for _, e := range db.Entries {
-		var id string
-		const n = 5
-		try := 0
-		for {
-			id = e.ID(try)[:n]
-			if _, ok := ids[id]; !ok {
-				break
-			}
-			try++
-		}
-
-		ids[id] = struct{}{}
-
-		if !filter.Match(id, e) {
+		if !filter.Match(e) {
 			continue
 		}
 
-		row(e, id)
+		row(e)
 	}
 }
 

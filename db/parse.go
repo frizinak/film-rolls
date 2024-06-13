@@ -90,6 +90,7 @@ func Parse(r io.Reader) (*DB, error) {
 
 func finalize(db *DB) {
 	sort.Sort(db.Entries)
+	ids := make(map[string]struct{})
 
 	loaded := make(map[ID]int)
 	for i, e := range db.Entries {
@@ -97,10 +98,24 @@ func finalize(db *DB) {
 		if e.Lab == nil {
 			loaded[e.Camera.ID] = i
 		}
+
+		var id string
+		const n = 5
+		try := 0
+		for {
+			id = e.ID(try)[:n]
+			if _, ok := ids[id]; !ok {
+				break
+			}
+			try++
+		}
+
+		ids[id] = struct{}{}
+		db.Entries[i].State.ID = id
 	}
 
 	for i, e := range db.Entries {
-		db.Entries[i].Loaded = loaded[e.Camera.ID] == i
+		db.Entries[i].State.Loaded = loaded[e.Camera.ID] == i
 	}
 }
 

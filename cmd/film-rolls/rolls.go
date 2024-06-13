@@ -232,8 +232,8 @@ func main() {
 				}
 			}
 
-			d.Row(db.Filter{}, func(e db.Entry, id string) {
-				fmt.Println("id", id)
+			d.Row(db.Filter{}, func(e db.Entry) {
+				fmt.Println("id", e.State.ID)
 				date(e.LoadDate)
 				date(e.LabInDate)
 				date(e.LabOutDate)

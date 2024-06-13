@@ -123,7 +123,7 @@ func (f Filter) MatchCamera(c *Camera) bool {
 	return true
 }
 
-func (f Filter) Match(id string, e Entry) bool {
+func (f Filter) Match(e Entry) bool {
 	scan := make([]string, 0, 1)
 	for _, v := range strings.Split(f.Scan, ",") {
 		scan = append(scan, strings.TrimLeft(v, "0"))
@@ -160,7 +160,7 @@ func (f Filter) Match(id string, e Entry) bool {
 	}
 
 	switch {
-	case f.not(f.ID, id):
+	case f.not(f.ID, e.State.ID):
 		return false
 	case f.not(f.LID, f.gID(e.Lab)):
 		return false
@@ -180,9 +180,9 @@ func (f Filter) Match(id string, e Entry) bool {
 		return false
 	case f.StatusUnscanned && e.Scan != 0:
 		return false
-	case f.StatusLoaded && !e.Loaded:
+	case f.StatusLoaded && !e.State.Loaded:
 		return false
-	case f.StatusUnloaded && e.Loaded:
+	case f.StatusUnloaded && e.State.Loaded:
 		return false
 	case ndate(f.Since, e.LoadDate, e.LoadDate.Before):
 		return false

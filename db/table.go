@@ -220,7 +220,7 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 		)
 	}
 
-	db.Row(conf.Filter, func(e Entry, id string) {
+	db.Row(conf.Filter, func(e Entry) {
 		var labName, labInDate, labOutDate string
 		labID := "N/A"
 		if !e.Lab.None() {
@@ -238,7 +238,7 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 			scan = fmt.Sprintf("%d", e.Scan)
 		}
 		loadedString := " "
-		if e.Loaded {
+		if e.State.Loaded {
 			loadedString = "loaded"
 		}
 
@@ -247,9 +247,9 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 			note1 = e.Note[0]
 		}
 		row(
-			e.Loaded,
+			e.State.Loaded,
 			loadedString,
-			id,
+			e.State.ID,
 			e.LoadDate.Format(dateFormat),
 			e.Camera.ID.String(), e.Camera.Brand, e.Camera.Model,
 			e.Stock.ID.String(), e.Stock.Name, e.Stock.Format, e.Stock.Type.String(), e.Stock.ISO.String(), e.Stock.Company.Name,
@@ -289,9 +289,9 @@ func (db *DB) PrintTags(w io.Writer, filter Filter) {
 	}
 
 	list := make([]string, 0, 6)
-	db.Row(filter, func(e Entry, id string) {
+	db.Row(filter, func(e Entry) {
 		list = list[:0]
-		list = append(list, fmt.Sprintf("id:%s", id))
+		list = append(list, fmt.Sprintf("id:%s", e.State.ID))
 		list = append(list, fmt.Sprintf("camera:%s-%s", clean(e.Camera.Brand), clean(e.Camera.Model)))
 		list = append(list, fmt.Sprintf("film:%s-%s", clean(e.Stock.Company.Name), clean(e.Stock.Name)))
 		list = append(list, fmt.Sprintf("iso:%s", clean(e.Stock.ISO.String())))
@@ -366,7 +366,7 @@ func (db *DB) PrintStocks(w io.Writer, conf TableConfig) {
 			l[id] = &s{stock, stock.Rolls}
 		}
 
-		db.Row(Filter{}, func(e Entry, id string) {
+		db.Row(Filter{}, func(e Entry) {
 			used[e.Stock.ID] = struct{}{}
 			l[e.Stock.ID].Rolls--
 		})
@@ -491,8 +491,8 @@ func (db *DB) PrintCameras(w io.Writer, conf TableConfig) {
 		cams[k] = &c{Camera: v}
 	}
 
-	db.Row(Filter{}, func(e Entry, id string) {
-		if !e.Loaded {
+	db.Row(Filter{}, func(e Entry) {
+		if !e.State.Loaded {
 			return
 		}
 
