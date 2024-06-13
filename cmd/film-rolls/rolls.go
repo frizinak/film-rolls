@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"time"
@@ -34,6 +35,58 @@ const (
 	modeIDs     = "ids"
 )
 
+func usage(w io.Writer) {
+	fmt.Fprint(w, `film-rolls <flags>:
+  General:
+    -m <mode>               one of log, stocks, cameras, prices or tags (default "log")
+    -l <logdirectory>       directory containing your .log and .def files
+                            which are read in alphabetical order (first .def then .log).
+                            (default $HOME/film-rolls)
+    -v                      be verbose
+
+  Output:
+    -md                     output markdown compatible table (implies -f plain, ignores -s)
+    -nh                     don't output header
+    -s  <separator>         (default " │ ")
+    -f  <format>            format: plain or pretty (default "pretty")
+    -short                  shorter output
+    -notes                  show notes
+
+  Query Filters:
+    -id     <QUERY>         filter by id
+    -cid    <QUERY>         filter by camera id
+    -lid    <QUERY>         filter by lab id
+    -sid    <QUERY>         filter by stock id
+    -file   <QUERY>         filter by filename
+    -scan   <QUERY>         filter by scan
+    -format <QUERY>         filter by film format
+             QUERY:         comma separated list of individual queries, supports * wildcards
+                            e.g.: -id 9f*,da930
+
+  Date Filters:
+    -since         <DATE>   only show rolls loaded in a camera starting from this date
+    -until         <DATE>   only show rolls loaded in a camera until this date (inclusive)
+    -since-lab-in  <DATE>   only show rolls delivered to a lab starting from this date
+    -until-lab-in  <DATE>   only show rolls delivered to a lab until this date (inclusive)
+    -since-lab-out <DATE>   only show rolls retrieved from a lab starting from this date
+    -until-lab-out <DATE>   only show rolls retrieved from a lab until this date (inclusive)
+                    DATE:   YYYY-MM-DD
+
+  Boolean Filters:
+    -dev                    only show developed rolls
+    -undev                  only show undeveloped rolls
+    -lab                    only show rolls at the lab
+    -scanned                only show scanned rolls
+    -unscanned              only show unscanned rolls
+    -loaded                 only show loaded rolls
+    -unloaded               only show unloaded rolls
+    -color                  only show color rolls
+    -bw                     only show b/w rolls
+    -pos                    only show slides
+    -neg                    only show negatives
+    -available              only show rolls we have [-m stocks]
+`)
+}
 func main() {
 	var verbose bool
 	var format string
@@ -83,58 +136,7 @@ func main() {
 	flag.StringVar(&conf.Filter.SinceLabOut, "since-lab-out", "", "")
 	flag.StringVar(&conf.Filter.UntilLabOut, "until-lab-out", "", "")
 
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "%s <flags>:\n", os.Args[0])
-		fmt.Print(`  General:
-    -m <mode>               one of log, stocks, cameras, prices or tags (default "log")
-    -l <logdirectory>       directory containing your .log and .def files
-                            which are read in alphabetical order (first .def then .log).
-                            (default $HOME/film-rolls)
-    -v                      be verbose
-
-  Output:
-    -md                     output markdown compatible table (implies -f plain, ignores -s)
-    -nh                     don't output header
-    -s  <separator>         (default " │ ")
-    -f  <format>            format: plain or pretty (default "pretty")
-    -short                  shorter output
-    -notes                  show notes
-
-  Query Filters:
-    -id     <QUERY>         filter by id
-    -cid    <QUERY>         filter by camera id
-    -lid    <QUERY>         filter by lab id
-    -sid    <QUERY>         filter by stock id
-    -file   <QUERY>         filter by filename
-    -scan   <QUERY>         filter by scan
-    -format <QUERY>         filter by film format
-             QUERY:         comma separated list of individual queries, supports * wildcards
-                            e.g.: -id 9f*,da930
-
-  Date Filters:
-    -since         <DATE>   only show rolls loaded in a camera starting from this date
-    -until         <DATE>   only show rolls loaded in a camera until this date (inclusive)
-    -since-lab-in  <DATE>   only show rolls delivered to a lab starting from this date
-    -until-lab-in  <DATE>   only show rolls delivered to a lab until this date (inclusive)
-    -since-lab-out <DATE>   only show rolls retrieved from a lab starting from this date
-    -until-lab-out <DATE>   only show rolls retrieved from a lab until this date (inclusive)
-                    DATE:   YYYY-MM-DD
-
-  Boolean Filters:
-    -dev                    only show developed rolls
-    -undev                  only show undeveloped rolls
-    -lab                    only show rolls at the lab
-    -scanned                only show scanned rolls
-    -unscanned              only show unscanned rolls
-    -loaded                 only show loaded rolls
-    -unloaded               only show unloaded rolls
-    -color                  only show color rolls
-    -bw                     only show b/w rolls
-    -pos                    only show slides
-    -neg                    only show negatives
-    -available              only show rolls we have [-m stocks]
-`)
-	}
+	flag.Usage = func() { usage(os.Stderr) }
 	flag.Parse()
 
 	if dbDir == "" {
