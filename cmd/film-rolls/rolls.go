@@ -51,6 +51,7 @@ func usage(w io.Writer) {
     -f  <format>            format: plain or pretty (default "pretty")
     -short                  shorter output
     -notes                  show notes
+    -sort <sort-mode>       sort by either date or scan (default "date")
 
   Query Filters:
     -id     <QUERY>         filter by id
@@ -87,6 +88,34 @@ func usage(w io.Writer) {
     -available              only show rolls we have [-m stocks]
 `)
 }
+
+type SortVar struct {
+	*db.Sort
+}
+
+func (s *SortVar) String() string {
+	switch *s.Sort {
+	case db.SortDefault:
+		return "date"
+	case db.SortScan:
+		return "scan"
+	}
+	return "<NOT IMPLEMENTED>"
+}
+
+func (s *SortVar) Set(i string) error {
+	switch i {
+	case "date":
+		*s.Sort = db.SortDefault
+	case "scan":
+		*s.Sort = db.SortScan
+	default:
+		return fmt.Errorf("'%s' is not a valid sort option", i)
+	}
+
+	return nil
+}
+
 func main() {
 	var verbose bool
 	var format string
@@ -105,6 +134,9 @@ func main() {
 	flag.BoolVar(&nh, "nh", false, "")
 	flag.BoolVar(&conf.Short, "short", false, "")
 	flag.BoolVar(&conf.Notes, "notes", false, "")
+
+	var sort = SortVar{&conf.Sort}
+	flag.Var(&sort, "sort", "")
 
 	flag.StringVar(&conf.Filter.ID, "id", "", "")
 	flag.StringVar(&conf.Filter.LID, "lid", "", "")

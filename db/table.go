@@ -12,6 +12,13 @@ import (
 	"github.com/frizinak/film-rolls/table"
 )
 
+type Sort uint8
+
+const (
+	SortDefault Sort = iota
+	SortScan
+)
+
 type TableConfig struct {
 	Filter Filter
 
@@ -19,6 +26,8 @@ type TableConfig struct {
 	Short  bool
 	Color  bool
 	Pretty bool
+
+	Sort Sort
 
 	Header                bool
 	HeaderSep             bool
@@ -220,7 +229,28 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 		)
 	}
 
-	db.Row(conf.Filter, func(e Entry) {
+	rows := func(row func(e Entry)) {
+		db.Row(conf.Filter, row)
+	}
+
+	if conf.Sort == SortScan {
+		rows = func(row func(e Entry)) {
+			list := make(Entries, 0, len(db.Entries))
+			db.Row(conf.Filter, func(e Entry) {
+				list = append(list, e)
+			})
+
+			slices.SortFunc(list, func(a, b Entry) int {
+				return cmp.Compare(a.Scan, b.Scan)
+			})
+
+			for _, e := range list {
+				row(e)
+			}
+		}
+	}
+
+	rows(func(e Entry) {
 		var labName, labInDate, labOutDate string
 		labID := "N/A"
 		if !e.Lab.None() {

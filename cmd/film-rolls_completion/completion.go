@@ -100,6 +100,7 @@ func main() {
 		{name: "f", options: func() []string { return []string{"plain", "pretty"} }},
 		{name: "short", options: noFile},
 		{name: "notes", options: noFile},
+		{name: "sort", options: func() []string { return []string{"date", "scan"} }},
 		{name: "id", options: func() []string { return get("id") }},
 		{name: "cid", options: func() []string { return get("cid") }},
 		{name: "lid", options: func() []string { return get("lid") }},
