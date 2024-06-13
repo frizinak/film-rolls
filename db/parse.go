@@ -2,6 +2,7 @@ package db
 
 import (
 	"bufio"
+	"bytes"
 	"cmp"
 	"errors"
 	"fmt"
@@ -29,7 +30,7 @@ func mk() *DB {
 	}
 }
 
-func ParseDir(dir string) (*DB, error) {
+func ParseDir(dir string, cb func(db *DB, file string) (bool, error)) (*DB, error) {
 	d, err := os.Open(dir)
 	if err != nil {
 		return nil, err
@@ -61,13 +62,25 @@ func ParseDir(dir string) (*DB, error) {
 		}
 		return cmp.Compare(a, b)
 	})
+
 	db := mk()
 	for _, file := range files {
+		if cb != nil {
+			load, err := cb(db, file)
+			if err != nil {
+				return nil, err
+			}
+			if !load {
+				continue
+			}
+		}
+
 		f, err := os.Open(filepath.Join(dir, file))
 		if err != nil {
 			return nil, err
 		}
-		if err = parse(db, file[:len(file)-4], f); err != nil {
+
+		if err = db.Parse(file[:len(file)-4], f); err != nil {
 			return db, err
 		}
 	}
@@ -83,7 +96,7 @@ func ParseDir(dir string) (*DB, error) {
 
 func Parse(r io.Reader) (*DB, error) {
 	db := mk()
-	err := parse(db, "", r)
+	err := db.Parse("", r)
 	finalize(db)
 	return db, err
 }
@@ -119,7 +132,7 @@ func finalize(db *DB) {
 	}
 }
 
-func parse(db *DB, file string, r io.Reader) error {
+func (db *DB) Parse(file string, r io.Reader) error {
 	var lastID ID
 	scans := make(map[uint]struct{})
 
@@ -490,4 +503,230 @@ func (db *DB) mkEntry(d time.Time, p []string, scans map[uint]struct{}) (Entry, 
 	}
 
 	return e, nil
+}
+
+func (db *DB) Write(w io.Writer) error {
+	return write(newWriter(w), db)
+}
+
+func (db *DB) WriteEntries(w io.Writer) error {
+	return writeEntries(newWriter(w), db)
+}
+
+func (db *DB) WriteEntry(w io.Writer, e Entry) error {
+	return writeEntry(newWriter(w), e)
+}
+
+type writer struct {
+	w   io.Writer
+	buf *bytes.Buffer
+	i   []byte
+	err error
+}
+
+func newWriter(w io.Writer) *writer {
+	return &writer{w: w, buf: bytes.NewBuffer(make([]byte, 0, 10000)), i: []byte("    ")}
+}
+
+func (w *writer) p(format string, args ...any) *writer {
+	fmt.Fprintf(w.buf, format, args...)
+	return w
+}
+
+func (w *writer) flush() *writer {
+	if w.err != nil {
+		return w
+	}
+	_, err := w.buf.WriteTo(w.w)
+	if err != nil {
+		w.err = err
+	}
+	return w
+}
+
+func (w *writer) indent() *writer {
+	w.buf.Write(w.i)
+	return w
+}
+
+func write(w *writer, db *DB) error {
+	{
+		cameras := make([]*Camera, 0, len(db.Cameras))
+		for _, c := range db.Cameras {
+			cameras = append(cameras, c)
+		}
+
+		slices.SortFunc(cameras, func(a, b *Camera) int {
+			return cmp.Compare(a.ID, b.ID)
+		})
+
+		for _, c := range cameras {
+			w.p("Camera %s\n", string(c.ID)).
+				indent().p("%s\n", c.Brand).
+				indent().p("%s\n", c.Model).
+				p("\n").flush()
+		}
+	}
+
+	{
+		companies := make([]*Company, 0, len(db.Companies))
+		for _, c := range db.Companies {
+			companies = append(companies, c)
+		}
+
+		slices.SortFunc(companies, func(a, b *Company) int {
+			return cmp.Compare(a.ID, b.ID)
+		})
+
+		for _, c := range companies {
+			w.p("Company %s\n", string(c.ID)).
+				indent().p("%s\n", c.Name).
+				p("\n").flush()
+		}
+	}
+
+	{
+		labs := make([]*Lab, 0, len(db.Labs))
+		for _, c := range db.Labs {
+			labs = append(labs, c)
+		}
+
+		slices.SortFunc(labs, func(a, b *Lab) int {
+			return cmp.Compare(a.ID, b.ID)
+		})
+
+		for _, c := range labs {
+			w.p("Lab %s\n", string(c.ID)).
+				indent().p("%s\n", c.Name).
+				p("\n").flush()
+		}
+	}
+
+	{
+		stocks := make([]*Stock, 0, len(db.Stocks))
+		for _, c := range db.Stocks {
+			stocks = append(stocks, c)
+		}
+
+		slices.SortFunc(stocks, func(a, b *Stock) int {
+			return cmp.Compare(a.ID, b.ID)
+		})
+
+		for _, c := range stocks {
+			w.p("Stock %s\n", string(c.ID)).
+				indent().p("%s %s\n", c.Format, string(c.Type)).
+				indent().p("%s\n", c.Name).
+				indent().p("%s\n", string(c.Company.ID)).
+				indent().p("%s\n", c.ISO.String())
+
+			if c.Rolls != 0 {
+				w.indent().p("%d\n", c.Rolls)
+			}
+
+			w.p("\n").flush()
+		}
+	}
+
+	{
+		stores := make([]*Store, 0, len(db.Stores))
+		for _, c := range db.Stores {
+			stores = append(stores, c)
+		}
+
+		slices.SortFunc(stores, func(a, b *Store) int {
+			return cmp.Compare(a.ID, b.ID)
+		})
+
+		for _, c := range stores {
+			w.p("Store %s\n", string(c.ID)).
+				indent().p("%s\n", c.Name)
+
+			products := make([][3]string, 0, len(c.Products))
+			var l [3]int
+			for _, p := range c.Products {
+				price := strconv.FormatFloat(p.Price, 'f', p.Precision, 64)
+				e := [3]string{string(p.ID), strconv.Itoa(p.Amount), price}
+				products = append(products, e)
+				for i := range e {
+					ln := len(e[i])
+					if ln > l[i] {
+						l[i] = ln
+					}
+				}
+			}
+
+			slices.SortFunc(products, func(a, b [3]string) int {
+				for i := 0; i < 3; i++ {
+					if c := cmp.Compare(a[0], b[0]); c != 0 {
+						return c
+					}
+				}
+				return 0
+			})
+
+			format := fmt.Sprintf("%%-%ds %%%ds %%%ds\n", l[0], l[1], l[2])
+			for _, p := range products {
+				w.indent().p(format, p[0], p[1], p[2])
+			}
+
+			w.p("\n").flush()
+		}
+	}
+
+	if err := writeEntries(w, db); err != nil {
+		return err
+	}
+
+	return w.err
+}
+
+func writeEntries(w *writer, db *DB) error {
+	for _, e := range db.Entries {
+		if err := writeEntry(w, e); err != nil {
+			return err
+		}
+	}
+
+	return w.err
+}
+
+func writeEntry(w *writer, e Entry) error {
+	a := "-"
+	if e.State.Loaded {
+		a = " "
+	}
+	if !e.Lab.None() {
+		a = string(e.Lab.ID)
+	}
+
+	var labin, labout, scan string
+	if e.LabInDate != (time.Time{}) {
+		labin = e.LabInDate.Format(dateFormat)
+	}
+	if e.LabOutDate != (time.Time{}) {
+		labout = e.LabOutDate.Format(dateFormat)
+	}
+	if e.Scan != 0 {
+		scan = fmt.Sprintf("%04d", e.Scan)
+	}
+
+	f := fmt.Sprintf(
+		"%s %s %s %s %s %s %s",
+		e.LoadDate.Format(dateFormat),
+		string(e.Stock.ID),
+		string(e.Camera.ID),
+		a,
+		labin,
+		labout,
+		scan,
+	)
+
+	w.p("%s\n", strings.TrimRight(f, " "))
+	for _, n := range e.Note {
+		w.indent().p("%s\n", n)
+	}
+
+	w.p("\n").flush()
+
+	return w.err
 }

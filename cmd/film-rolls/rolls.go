@@ -311,7 +311,7 @@ func main() {
 	}
 
 	bench := time.Now()
-	db, err := db.ParseDir(dbDir)
+	db, err := db.ParseDir(dbDir, nil)
 	exit(err)
 
 	run(db)
