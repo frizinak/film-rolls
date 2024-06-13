@@ -33,6 +33,7 @@ const (
 	modeCameras = "cameras"
 	modeTags    = "tags"
 	modeIDs     = "ids"
+	modeWeb     = "web"
 )
 
 func usage(w io.Writer) {
@@ -43,6 +44,7 @@ func usage(w io.Writer) {
                             which are read in alphabetical order (first .def then .log).
                             (default $HOME/film-rolls)
     -v                      be verbose
+    -addr  <addr>           listen address e.g: ":8080" or "127.0.0.1:8080" [-m web]
 
   Output:
     -md                     output markdown compatible table (implies -f plain, ignores -s)
@@ -123,11 +125,13 @@ func main() {
 	var md bool
 	var nh bool
 	var dbDir string
+	var addr string
 
 	conf := db.TableConfigDefault()
 	flag.BoolVar(&verbose, "v", false, "")
 	flag.StringVar(&dbDir, "l", "", "")
 	flag.StringVar(&mode, "m", modeLog, "")
+	flag.StringVar(&addr, "addr", ":8080", "")
 	flag.StringVar(&format, "f", formatPretty, "")
 	flag.StringVar(&conf.Separator, "s", conf.Separator, "")
 	flag.BoolVar(&md, "md", false, "")
@@ -300,6 +304,10 @@ func main() {
 				fmt.Println("lid", id)
 			}
 		}
+
+	case modeWeb:
+		exit(web(flag.CommandLine, addr, dbDir, &mode, &conf))
+		return
 
 	default:
 		fmt.Fprintf(os.Stderr, "invalid mode '%s'\n", mode)
