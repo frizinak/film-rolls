@@ -215,6 +215,7 @@ func main() {
 
 	conf.Color = format == formatPretty
 	conf.Pretty = conf.Color
+	conf.Zebra = conf.Color
 
 	var run func(db *db.DB)
 	switch mode {

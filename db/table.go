@@ -26,6 +26,7 @@ type TableConfig struct {
 	Short  bool
 	Color  bool
 	Pretty bool
+	Zebra  bool
 
 	Sort Sort
 
@@ -57,6 +58,7 @@ func rowStock(
 	t *table.Table,
 	conf TableConfig,
 	space table.Col,
+	clrReset func() string,
 	stockID, stockName, stockFormat, stockType, stockISO, stockCompany string,
 ) {
 	clr := func(seq string) string {
@@ -66,10 +68,16 @@ func rowStock(
 		return ""
 	}
 
+	if clrReset == nil {
+		clrReset = func() string {
+			return clr("\033[0m")
+		}
+	}
+
 	t.AddCol(table.ColFixed(table.ColPreSuf(
 		table.TermStr(stockID),
 		clr("\033[38;5;244m"),
-		clr("\033[0m"),
+		clrReset(),
 	)))
 
 	if !conf.Short {
@@ -81,13 +89,13 @@ func rowStock(
 		t.AddCol(table.ColFixed(table.ColPreSuf(
 			table.TermStr(stockCompany),
 			clr("\033[32m"),
-			clr("\033[0m"),
+			clrReset(),
 		)))
 		t.AddCol(table.ColFixed(space))
 		t.AddCol(table.ColFixed(table.ColPreSuf(
 			table.TermStr(stockName),
 			clr("\033[32m"),
-			clr("\033[0m"),
+			clrReset(),
 		)))
 		t.AddCol(table.ColFixed(space))
 		t.AddCol(table.ColAlignRight(table.ColFixed(table.TermStr(mdHeaderRightSep(stockISO)))))
@@ -100,9 +108,23 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 	line := table.TermStr(conf.Separator)
 	lline := table.TermStr(strings.TrimLeft(conf.Separator, " "))
 	rline := table.TermStr(strings.TrimRight(conf.Separator, " "))
-
 	if !conf.Pretty {
 		space = line
+	}
+
+	zebra := true
+	bgclr := func(prefix ...string) string {
+		if !conf.Zebra || !conf.Color {
+			return ""
+		}
+		z := "\033[48;5;235m\033[38;5;15m"
+		if zebra {
+			z = "\033[48;5;237m\033[38;5;15m"
+		}
+		if len(prefix) == 0 {
+			return z
+		}
+		return z + strings.Join(prefix, "")
 	}
 
 	clr := func(seq string) string {
@@ -110,6 +132,10 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 			return seq
 		}
 		return ""
+	}
+
+	clrReset := func() string {
+		return clr("\033[0m") + bgclr()
 	}
 
 	row := func(
@@ -124,6 +150,8 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 		note string,
 	) {
 		t.NewRow()
+
+		t.AddCol(table.ColFixed(table.Str(bgclr(" "))))
 		if conf.StartEndWithSeparator {
 			t.AddCol(table.ColFixed(lline))
 		}
@@ -141,7 +169,7 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 		t.AddCol(table.ColFixed(table.ColPreSuf(
 			table.TermStr(cameraID),
 			clr(cidClr),
-			clr("\033[0m"),
+			clrReset(),
 		)))
 
 		if !conf.Short {
@@ -149,7 +177,7 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 			camPrefix, camSuffix := "", ""
 			if loaded && conf.Color {
 				camPrefix = "\033[31m"
-				camSuffix = "\033[0m"
+				camSuffix = clrReset()
 			}
 
 			t.AddCol(table.ColFixed(table.ColPreSuf(table.TermStr(cameraBrand), camPrefix, camSuffix)))
@@ -164,13 +192,13 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 			t.AddCol(table.ColFixed(line))
 		}
 
-		rowStock(t, conf, space, stockID, stockName, stockFormat, stockType, stockISO, stockCompany)
+		rowStock(t, conf, space, clrReset, stockID, stockName, stockFormat, stockType, stockISO, stockCompany)
 		t.AddCol(table.ColFixed(line))
 
 		t.AddCol(table.ColFixed(table.ColPreSuf(
 			table.TermStr(labID),
 			clr("\033[38;5;244m"),
-			clr("\033[0m"),
+			clrReset(),
 		)))
 
 		if !conf.Short {
@@ -198,6 +226,8 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 		if conf.StartEndWithSeparator {
 			t.AddCol(table.ColFixed(rline))
 		}
+
+		t.AddCol(table.ColFixed(table.Str(clr(" \033[0m"))))
 	}
 
 	if conf.Header {
@@ -280,6 +310,8 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 		if conf.Notes && len(e.Note) != 0 {
 			note1 = e.Note[0]
 		}
+
+		zebra = !zebra
 		row(
 			e.State.Loaded,
 			loadedString,
@@ -293,9 +325,7 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 		)
 
 		if conf.Notes && len(e.Note) > 1 {
-			notes := make([]string, len(e.Note))
-			copy(notes, e.Note[1:])
-			for _, note := range notes {
+			for _, note := range e.Note[1:] {
 				row(
 					false,
 					"",
@@ -372,7 +402,7 @@ func (db *DB) PrintStocks(w io.Writer, conf TableConfig) {
 		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(mdHeaderRightSep(total)))))
 		t.AddCol(table.ColFixed(line))
 
-		rowStock(t, conf, space, stockID, stockName, stockFormat, stockType, stockISO, stockCompany)
+		rowStock(t, conf, space, nil, stockID, stockName, stockFormat, stockType, stockISO, stockCompany)
 
 		if conf.StartEndWithSeparator {
 			t.AddCol(table.ColFixed(rline))
@@ -499,7 +529,7 @@ func (db *DB) PrintCameras(w io.Writer, conf TableConfig) {
 		}
 		t.AddCol(table.ColFixed(line))
 
-		rowStock(t, conf, space, stockID, stockName, stockFormat, stockType, stockISO, stockCompany)
+		rowStock(t, conf, space, nil, stockID, stockName, stockFormat, stockType, stockISO, stockCompany)
 
 		if conf.StartEndWithSeparator {
 			t.AddCol(table.ColFixed(rline))
@@ -631,7 +661,7 @@ func (db *DB) PrintPrices(w io.Writer, conf TableConfig) {
 		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(mdHeaderRightSep(amount)))))
 		t.AddCol(table.ColFixed(line))
 
-		rowStock(t, conf, space, stockID, stockName, stockFormat, stockType, stockISO, stockCompany)
+		rowStock(t, conf, space, nil, stockID, stockName, stockFormat, stockType, stockISO, stockCompany)
 		t.AddCol(table.ColFixed(line))
 
 		t.AddCol(table.ColFixed(table.TermStr(store)))
