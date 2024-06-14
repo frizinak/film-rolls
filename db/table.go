@@ -220,7 +220,7 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 		t.AddCol(table.ColFixed(line))
 		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(mdHeaderRightSep(linenr)))))
 
-		if conf.Notes {
+		if conf.Notes || conf.Labels {
 			t.AddCol(table.ColFixed(line))
 			t.AddCol(table.TermStr(note))
 		}
@@ -310,19 +310,23 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 
 		var notes []string
 		{
-			size := len(e.Note)
+			var list []string
+			if conf.Notes {
+				list = e.Note
+			}
+
 			var labels []string
 			if conf.Labels {
 				labels = e.Labels.Values()
-				size += len(labels)
 			}
-			notes = make([]string, size)
-			copy(notes, e.Note)
-			copy(notes[len(e.Note):], labels)
+
+			notes = make([]string, len(list)+len(labels))
+			copy(notes, list)
+			copy(notes[len(list):], labels)
 		}
 
 		var note1 string
-		if conf.Notes && len(notes) != 0 {
+		if len(notes) != 0 {
 			note1 = notes[0]
 		}
 
@@ -339,21 +343,19 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 			note1,
 		)
 
-		if conf.Notes {
-			if len(notes) > 1 {
-				for _, note := range notes[1:] {
-					row(
-						false,
-						"",
-						"",
-						"",
-						"", "", "",
-						"", "", "", "", "", "",
-						"", "", "", "",
-						"", "", "",
-						note,
-					)
-				}
+		if len(notes) > 1 {
+			for _, note := range notes[1:] {
+				row(
+					false,
+					"",
+					"",
+					"",
+					"", "", "",
+					"", "", "", "", "", "",
+					"", "", "", "",
+					"", "", "",
+					note,
+				)
 			}
 		}
 
