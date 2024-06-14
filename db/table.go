@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -23,6 +24,7 @@ type TableConfig struct {
 	Filter Filter
 
 	Notes  bool
+	Labels bool
 	Short  bool
 	Color  bool
 	Pretty bool
@@ -306,9 +308,22 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 			loadedString = "loaded"
 		}
 
+		var notes []string
+		{
+			size := len(e.Note)
+			var labels []string
+			if conf.Labels {
+				labels = e.Labels.Values()
+				size += len(labels)
+			}
+			notes = make([]string, size)
+			copy(notes, e.Note)
+			copy(notes[len(e.Note):], labels)
+		}
+
 		var note1 string
-		if conf.Notes && len(e.Note) != 0 {
-			note1 = e.Note[0]
+		if conf.Notes && len(notes) != 0 {
+			note1 = notes[0]
 		}
 
 		zebra = !zebra
@@ -324,21 +339,24 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 			note1,
 		)
 
-		if conf.Notes && len(e.Note) > 1 {
-			for _, note := range e.Note[1:] {
-				row(
-					false,
-					"",
-					"",
-					"",
-					"", "", "",
-					"", "", "", "", "", "",
-					"", "", "", "",
-					"", "", "",
-					note,
-				)
+		if conf.Notes {
+			if len(notes) > 1 {
+				for _, note := range notes[1:] {
+					row(
+						false,
+						"",
+						"",
+						"",
+						"", "", "",
+						"", "", "", "", "", "",
+						"", "", "", "",
+						"", "", "",
+						note,
+					)
+				}
 			}
 		}
+
 	})
 	if conf.Width != 0 {
 		t.SetFixedWidth(conf.Width)
@@ -367,6 +385,23 @@ func (db *DB) PrintTags(w io.Writer, filter Filter) {
 		if e.Scan != 0 {
 			list = append(list, fmt.Sprintf("scan:%04d", e.Scan))
 		}
+
+		tags := make(map[string]struct{}, 0)
+		for _, t := range e.Labels["tags"] {
+			l := strings.FieldsFunc(t, func(r rune) bool {
+				return r == ' ' || r == ','
+			})
+			for _, v := range l {
+				tags[v] = struct{}{}
+			}
+		}
+
+		taglist := make([]string, 0, len(tags))
+		for k := range tags {
+			taglist = append(taglist, k)
+		}
+		sort.Strings(taglist)
+		list = append(list, taglist...)
 
 		fmt.Fprintln(w, strings.Join(list, " "))
 	})

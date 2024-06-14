@@ -53,6 +53,7 @@ func usage(w io.Writer) {
     -f  <format>            format: plain or pretty (default "pretty")
     -short                  shorter output
     -notes                  show notes
+    -labels                 show labels
     -sort <sort-mode>       sort by either date or scan (default "date")
 
   Query Filters:
@@ -138,6 +139,7 @@ func main() {
 	flag.BoolVar(&nh, "nh", false, "")
 	flag.BoolVar(&conf.Short, "short", false, "")
 	flag.BoolVar(&conf.Notes, "notes", false, "")
+	flag.BoolVar(&conf.Labels, "labels", false, "")
 
 	var sort = SortVar{&conf.Sort}
 	flag.Var(&sort, "sort", "")

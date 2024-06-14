@@ -2,9 +2,11 @@ package db
 
 import (
 	"bytes"
+	"cmp"
 	"crypto/sha512"
 	"encoding/hex"
 	"fmt"
+	"slices"
 	"time"
 )
 
@@ -122,6 +124,50 @@ func (c *Camera) Short() string {
 	return fmt.Sprintf("%s %s", c.Brand, c.Model)
 }
 
+type Values map[string][]string
+
+func (v Values) Get(k string) string {
+	vs := v[k]
+	if len(vs) == 0 {
+		return ""
+	}
+	return vs[0]
+}
+
+func (v Values) Set(k, val string) { v[k] = []string{val} }
+func (v Values) Add(k, val string) { v[k] = append(v[k], val) }
+func (v Values) Del(k string)      { delete(v, k) }
+func (v Values) Has(k string) bool {
+	_, ok := v[k]
+	return ok
+}
+
+func (v Values) Values() []string {
+	type l struct {
+		n string
+		v []string
+	}
+	ls := make([]l, 0, len(v))
+	c := 0
+	for k, vs := range v {
+		ls = append(ls, l{k, vs})
+		c += len(vs)
+	}
+
+	slices.SortFunc(ls, func(a, b l) int {
+		return cmp.Compare(a.n, b.n)
+	})
+
+	strs := make([]string, 0, c)
+	for _, l := range ls {
+		for _, v := range l.v {
+			strs = append(strs, fmt.Sprintf("+%s:%s", l.n, v))
+		}
+	}
+
+	return strs
+}
+
 type Entry struct {
 	Hide bool
 
@@ -138,7 +184,10 @@ type Entry struct {
 
 	Line uint
 
-	Note []string
+	RawNote []string
+
+	Note   []string
+	Labels Values
 
 	State struct {
 		ID     string
@@ -146,7 +195,11 @@ type Entry struct {
 	}
 }
 
-func (e Entry) ID(i int) string {
+func (e Entry) ID(i int) (string, bool) {
+	if e.Labels.Has("id") {
+		return e.Labels.Get("id"), true
+	}
+
 	h := sha512.New()
 	fmt.Fprintf(
 		h,
@@ -160,7 +213,7 @@ func (e Entry) ID(i int) string {
 	}
 
 	b := h.Sum(nil)
-	return hex.EncodeToString(b)
+	return hex.EncodeToString(b), false
 }
 
 func MkID(str string) (ID, error) {

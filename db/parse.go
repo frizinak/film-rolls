@@ -89,19 +89,19 @@ func ParseDir(dir string, cb func(db *DB, file string) (bool, error)) (*DB, erro
 		return db, errors.New("no log files found")
 	}
 
-	finalize(db)
-
-	return db, nil
+	return db, finalize(db)
 }
 
 func Parse(r io.Reader) (*DB, error) {
 	db := mk()
 	err := db.Parse("", r)
-	finalize(db)
-	return db, err
+	if err != nil {
+		return nil, err
+	}
+	return db, finalize(db)
 }
 
-func finalize(db *DB) {
+func finalize(db *DB) error {
 	sort.Sort(db.Entries)
 	ids := make(map[string]struct{})
 
@@ -116,11 +116,21 @@ func finalize(db *DB) {
 		const n = 5
 		try := 0
 		for {
-			id = e.ID(try)[:n]
+			idl, static := e.ID(try)
+			if static {
+				id = idl
+				break
+			}
+
+			id = idl[:n]
 			if _, ok := ids[id]; !ok {
 				break
 			}
 			try++
+		}
+
+		if _, ok := ids[id]; ok {
+			return fmt.Errorf("duplicate id '%s'", id)
 		}
 
 		ids[id] = struct{}{}
@@ -130,6 +140,8 @@ func finalize(db *DB) {
 	for i, e := range db.Entries {
 		db.Entries[i].State.Loaded = loaded[e.Camera.ID] == i
 	}
+
+	return nil
 }
 
 func (db *DB) Parse(file string, r io.Reader) error {
@@ -291,6 +303,16 @@ func (db *DB) Parse(file string, r io.Reader) error {
 				spaces = 0
 			}
 
+			db.Entries[i].RawNote = append(db.Entries[i].RawNote, t)
+
+			if len(t) > 2 && t[0] == '+' {
+				p := strings.SplitN(t[1:], ":", 2)
+				if len(p) == 2 {
+					db.Entries[i].Labels.Add(p[0], p[1])
+					continue
+				}
+			}
+
 			str := make([]byte, len(t)+spaces)
 			{
 				i := 0
@@ -428,7 +450,7 @@ func (db *DB) Parse(file string, r io.Reader) error {
 }
 
 func (db *DB) mkEntry(d time.Time, p []string, scans map[uint]struct{}) (Entry, error) {
-	e := Entry{LoadDate: d}
+	e := Entry{LoadDate: d, Labels: make(Values)}
 	if len(p) < 3 {
 		return e, errors.New("invalid entry")
 	}
@@ -722,7 +744,7 @@ func writeEntry(w *writer, e Entry) error {
 	)
 
 	w.p("%s\n", strings.TrimRight(f, " "))
-	for _, n := range e.Note {
+	for _, n := range e.RawNote {
 		w.indent().p("%s\n", n)
 	}
 
