@@ -8,12 +8,21 @@ import (
 )
 
 func filter(opts []string, comp string) []string {
+	var pre string
+	{
+		li := strings.LastIndex(comp, ",")
+		if li >= 0 {
+			pre = comp[:li+1]
+			comp = comp[li+1:]
+		}
+	}
+
 	l := make([]string, 0, len(opts))
 	for _, o := range opts {
 		if !strings.HasPrefix(o, comp) {
 			continue
 		}
-		l = append(l, o)
+		l = append(l, pre+o)
 	}
 	return l
 }
