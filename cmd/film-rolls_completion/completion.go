@@ -137,6 +137,7 @@ func main() {
 		{name: "until-lab-in", options: date},
 		{name: "since-lab-out", options: date},
 		{name: "until-lab-out", options: date},
+		{name: "a", options: noFile},
 	}
 
 	var opts []string

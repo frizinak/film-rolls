@@ -283,10 +283,6 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 	}
 
 	rows(func(e Entry) {
-		if e.Hide {
-			return
-		}
-
 		var labName, labInDate, labOutDate string
 		labID := "N/A"
 		if !e.Lab.None() {
@@ -467,7 +463,7 @@ func (db *DB) PrintStocks(w io.Writer, conf TableConfig) {
 			l[id] = &s{stock, stock.Rolls}
 		}
 
-		db.Row(Filter{}, func(e Entry) {
+		db.Row(Filter{All: true}, func(e Entry) {
 			used[e.Stock.ID] = struct{}{}
 			l[e.Stock.ID].Rolls--
 		})
@@ -592,7 +588,7 @@ func (db *DB) PrintCameras(w io.Writer, conf TableConfig) {
 		cams[k] = &c{Camera: v}
 	}
 
-	db.Row(Filter{}, func(e Entry) {
+	db.Row(Filter{All: true}, func(e Entry) {
 		if !e.State.Loaded {
 			return
 		}

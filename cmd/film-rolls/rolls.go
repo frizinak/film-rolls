@@ -77,6 +77,7 @@ func usage(w io.Writer) {
                     DATE:   YYYY-MM-DD
 
   Boolean Filters:
+    -a                      do not ignore entries starting with !
     -dev                    only show developed rolls
     -undev                  only show undeveloped rolls
     -lab                    only show rolls at the lab
@@ -152,6 +153,7 @@ func main() {
 	flag.StringVar(&conf.Filter.Scan, "scan", "", "")
 	flag.StringVar(&conf.Filter.StockFormat, "format", "", "")
 
+	flag.BoolVar(&conf.Filter.All, "a", false, "")
 	flag.BoolVar(&conf.Filter.StatusUndev, "undev", false, "")
 	flag.BoolVar(&conf.Filter.StatusDev, "dev", false, "")
 	flag.BoolVar(&conf.Filter.StatusLab, "lab", false, "")
@@ -271,7 +273,7 @@ func main() {
 				}
 			}
 
-			d.Row(db.Filter{}, func(e db.Entry) {
+			d.Row(db.Filter{All: true}, func(e db.Entry) {
 				fmt.Println("id", e.State.ID)
 				date(e.LoadDate)
 				date(e.LabInDate)

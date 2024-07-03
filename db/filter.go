@@ -62,6 +62,8 @@ type Filter struct {
 	Since, Until             string
 	SinceLabIn, UntilLabIn   string
 	SinceLabOut, UntilLabOut string
+
+	All bool
 }
 
 type idable interface {
@@ -124,6 +126,10 @@ func (f Filter) MatchCamera(c *Camera) bool {
 }
 
 func (f Filter) Match(e Entry) bool {
+	if !f.All && e.Hide {
+		return false
+	}
+
 	scan := make([]string, 0, 1)
 	for _, v := range strings.Split(f.Scan, ",") {
 		scan = append(scan, strings.TrimLeft(v, "0"))
