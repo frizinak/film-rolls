@@ -167,11 +167,17 @@ func (db *DB) Parse(file string, r io.Reader) error {
 		line++
 		raw := s.Text()
 		indent := 0
+
+	outer:
 		for _, c := range raw {
-			if c != ' ' {
-				break
+			switch c {
+			case ' ':
+				indent++
+			case '\t':
+				indent += 4
+			default:
+				break outer
 			}
-			indent++
 		}
 		t := strings.TrimSpace(raw)
 		if t == "" {
@@ -303,7 +309,14 @@ func (db *DB) Parse(file string, r io.Reader) error {
 				spaces = 0
 			}
 
-			db.Entries[i].RawNote = append(db.Entries[i].RawNote, t)
+			{
+				raw := make([]byte, spaces+len(t))
+				copy(raw[spaces:], t)
+				for i := 0; i < spaces; i++ {
+					raw[i] = ' '
+				}
+				db.Entries[i].RawNote = append(db.Entries[i].RawNote, string(raw))
+			}
 
 			if len(t) > 2 && t[0] == '+' {
 				p := strings.SplitN(t[1:], ":", 2)

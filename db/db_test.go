@@ -12,40 +12,40 @@ import (
 func TestEnc(t *testing.T) {
 	str := `
 Camera CAM
-	Some
-	Camera
+    Some
+    Camera
 
 Company COMP
-	Some Company
+    Some Company
 
 Lab LAB
-	Laboratory
+    Laboratory
 
 Stock STOCK
-	120 C
-	Film stock
-	COMP
-	400
+    120 C
+    Film stock
+    COMP
+    400
 
 2024-05-01 STOCK CAM LAB 2024-05-02 2024-05-03 0060
 
 2024-05-01 STOCK CAM LAB 2024-05-02 2024-05-03
-	text
+    text
 
 2024-05-01 STOCK CAM LAB 2024-05-02
-	text
-	some more text
+    text
+    some more text
 
 2024-05-01 STOCK CAM -
-	text
-	+tags:pacific-ocean,under-the-sea
-	some more text
+    text
+    +tags:pacific-ocean,under-the-sea
+    some more text
 
 2024-05-01 STOCK CAM
-	text
+    text
 	+tags:pacific-ocean,under-the-sea
-	some more text
-	+id:123
+    	some more text
+    +id:123
 `
 	r := strings.NewReader(str)
 	data, err := db.Parse(r)
@@ -59,10 +59,10 @@ Stock STOCK
 	}
 
 	res := strings.TrimSpace(buf.String())
-	exp := strings.TrimSpace(str)
+	exp := strings.ReplaceAll(strings.TrimSpace(str), "\t", "    ")
 
 	dmp := diffmatchpatch.New()
-	diff := dmp.DiffMain(res, exp, true)
+	diff := dmp.DiffMain(res, exp, false)
 	if res != exp {
 		t.Error(dmp.DiffPrettyText(diff))
 	}
