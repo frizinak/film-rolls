@@ -243,9 +243,9 @@ func (db *DB) Parse(file string, r io.Reader) error {
 					}
 					switch i {
 					case 0:
-						s.ISO.Low = uint32(v)
+						s.ISO.Low = v
 					case 1:
-						s.ISO.High = uint32(v)
+						s.ISO.High = v
 					}
 				}
 				if s.ISO.High == 0 {
@@ -473,14 +473,12 @@ func (db *DB) mkEntry(d time.Time, p []string, scans map[uint]struct{}) (Entry, 
 
 	stockInfo := strings.SplitN(p[1], "@", 2)
 	sidStr := stockInfo[0]
-	var iso uint64
 	if len(stockInfo) != 1 {
-		var err error
-		iso, err = strconv.ParseUint(stockInfo[1], 10, 32)
+		iso, err := strconv.ParseUint(strings.TrimLeft(stockInfo[1], "0 _"), 10, 32)
 		if err != nil {
 			return e, errors.New("can't parse iso")
 		}
-		e.RawISO = uint32(iso)
+		e.RawISO = iso
 	}
 
 	sid, err := MkID(sidStr)
@@ -761,11 +759,27 @@ func writeEntry(w *writer, e Entry) error {
 		scan = fmt.Sprintf("%04d", e.Scan)
 	}
 
+	var isb []byte
+	{
+		const f = 4
+		is := []byte(e.ISOString())
+		isb = is
+		if len(is) < f {
+			isb = make([]byte, f)
+			for i := 0; i < len(isb)-len(is); i++ {
+				isb[i] = '_'
+			}
+			if len(is) <= len(isb) {
+				copy(isb[len(isb)-len(is):], is)
+			}
+		}
+	}
+
 	f := fmt.Sprintf(
-		"%s %s@%d %s %s %s %s %s",
+		"%s %s@%s %s %s %s %s %s",
 		e.LoadDate.Format(dateFormat),
 		string(e.Stock.ID),
-		e.ISO(),
+		isb,
 		string(e.Camera.ID),
 		a,
 		labin,

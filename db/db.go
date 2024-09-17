@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"slices"
+	"strconv"
 	"time"
 )
 
@@ -73,12 +74,12 @@ func (s *Stock) IDString() string {
 }
 
 type ISO struct {
-	Low, High uint32
+	Low, High uint64
 }
 
 func (iso ISO) String() string {
 	if iso.Low == iso.High {
-		return fmt.Sprintf("%d", iso.Low)
+		return strconv.FormatUint(iso.Low, 10)
 	}
 	return fmt.Sprintf("%d-%d", iso.Low, iso.High)
 }
@@ -179,7 +180,7 @@ type Entry struct {
 	Camera *Camera
 	Lab    *Lab
 
-	RawISO uint32
+	RawISO uint64
 
 	File string
 	Scan uint
@@ -218,12 +219,20 @@ func (e Entry) ID(i int) (string, bool) {
 	return hex.EncodeToString(b), false
 }
 
-func (e Entry) ISO() uint32 {
+func (e Entry) ISO() uint64 {
 	if e.RawISO != 0 {
 		return e.RawISO
 	}
 
 	return e.Stock.ISO.High
+}
+
+func (e Entry) ISOString() string {
+	if e.RawISO != 0 {
+		return strconv.FormatUint(e.RawISO, 10)
+	}
+
+	return e.Stock.ISO.String()
 }
 
 func MkID(str string) (ID, error) {

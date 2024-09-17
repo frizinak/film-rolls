@@ -146,7 +146,7 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 		id,
 		date,
 		cameraID, cameraBrand, cameraModel,
-		stockID, stockName, stockFormat, stockType, stockISO, stockCompany,
+		stockID, stockName, stockFormat, stockType, ISO, stockCompany,
 		labID, labName, labInDate, labOutDate,
 		file, scan, linenr,
 		note string,
@@ -194,7 +194,7 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 			t.AddCol(table.ColFixed(line))
 		}
 
-		rowStock(t, conf, space, clrReset, stockID, stockName, stockFormat, stockType, stockISO, stockCompany)
+		rowStock(t, conf, space, clrReset, stockID, stockName, stockFormat, stockType, ISO, stockCompany)
 		t.AddCol(table.ColFixed(line))
 
 		t.AddCol(table.ColFixed(table.ColPreSuf(
@@ -333,7 +333,7 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 			e.State.ID,
 			e.LoadDate.Format(dateFormat),
 			e.Camera.ID.String(), e.Camera.Brand, e.Camera.Model,
-			e.Stock.ID.String(), e.Stock.Name, e.Stock.Format, e.Stock.Type.String(), e.Stock.ISO.String(), e.Stock.Company.Name,
+			e.Stock.ID.String(), e.Stock.Name, e.Stock.Format, e.Stock.Type.String(), e.ISOString(), e.Stock.Company.Name,
 			labID, labName, labInDate, labOutDate,
 			e.File, scan, fmt.Sprintf("%d", e.Line),
 			note1,
@@ -374,7 +374,7 @@ func (db *DB) PrintTags(w io.Writer, filter Filter) {
 		list = append(list, fmt.Sprintf("id:%s", e.State.ID))
 		list = append(list, fmt.Sprintf("camera:%s-%s", clean(e.Camera.Brand), clean(e.Camera.Model)))
 		list = append(list, fmt.Sprintf("film:%s-%s", clean(e.Stock.Company.Name), clean(e.Stock.Name)))
-		list = append(list, fmt.Sprintf("iso:%s", clean(e.Stock.ISO.String())))
+		list = append(list, fmt.Sprintf("iso:%s", clean(e.ISOString())))
 		list = append(list, fmt.Sprintf("format:%s", clean(e.Stock.Format)))
 		list = append(list, fmt.Sprintf("type:%s", clean(e.Stock.Type.String())))
 		if !e.Lab.None() {
