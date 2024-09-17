@@ -179,6 +179,8 @@ type Entry struct {
 	Camera *Camera
 	Lab    *Lab
 
+	RawISO uint32
+
 	File string
 	Scan uint
 
@@ -214,6 +216,14 @@ func (e Entry) ID(i int) (string, bool) {
 
 	b := h.Sum(nil)
 	return hex.EncodeToString(b), false
+}
+
+func (e Entry) ISO() uint32 {
+	if e.RawISO != 0 {
+		return e.RawISO
+	}
+
+	return e.Stock.ISO.High
 }
 
 func MkID(str string) (ID, error) {

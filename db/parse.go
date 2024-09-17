@@ -438,6 +438,9 @@ func (db *DB) Parse(file string, r io.Reader) error {
 			if _, ok := db.Stocks[id]; ok {
 				return fmt.Errorf("duplicate stock id '%s'", id.String())
 			}
+			if strings.Contains(string(id), "@") {
+				return fmt.Errorf("stock id contains reserved character '@'")
+			}
 			db.Stocks[id] = &Stock{ID: id}
 		case keywordCamera:
 			if _, ok := db.Cameras[id]; ok {
@@ -467,7 +470,20 @@ func (db *DB) mkEntry(d time.Time, p []string, scans map[uint]struct{}) (Entry, 
 	if len(p) < 3 {
 		return e, errors.New("invalid entry")
 	}
-	sid, err := MkID(p[1])
+
+	stockInfo := strings.SplitN(p[1], "@", 2)
+	sidStr := stockInfo[0]
+	var iso uint64
+	if len(stockInfo) != 1 {
+		var err error
+		iso, err = strconv.ParseUint(stockInfo[1], 10, 32)
+		if err != nil {
+			return e, errors.New("can't parse iso")
+		}
+		e.RawISO = uint32(iso)
+	}
+
+	sid, err := MkID(sidStr)
 	if err != nil {
 		return e, err
 	}
@@ -746,9 +762,10 @@ func writeEntry(w *writer, e Entry) error {
 	}
 
 	f := fmt.Sprintf(
-		"%s %s %s %s %s %s %s",
+		"%s %s@%d %s %s %s %s %s",
 		e.LoadDate.Format(dateFormat),
 		string(e.Stock.ID),
+		e.ISO(),
 		string(e.Camera.ID),
 		a,
 		labin,
