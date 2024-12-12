@@ -38,6 +38,8 @@ type TableConfig struct {
 	StartEndWithSeparator bool
 
 	Width int
+
+	StockTotals bool
 }
 
 var defaultConf = TableConfig{
@@ -489,6 +491,7 @@ func (db *DB) PrintStocks(w io.Writer, conf TableConfig) {
 		})
 	}
 
+	var totals, amount [3]int
 	for _, stock := range sorted {
 		if !conf.Filter.MatchStock(stock.Stock) {
 			continue
@@ -502,16 +505,36 @@ func (db *DB) PrintStocks(w io.Writer, conf TableConfig) {
 			continue
 		}
 
+		amount[0] = stock.Rolls
+		amount[1] = stock.Stock.Rolls - stock.Rolls
+		amount[2] = stock.Stock.Rolls
+		for i := range totals {
+			totals[i] += amount[i]
+		}
 		row(
-			strconv.Itoa(stock.Rolls),
-			strconv.Itoa(stock.Stock.Rolls-stock.Rolls),
-			strconv.Itoa(stock.Stock.Rolls),
+			strconv.Itoa(amount[0]),
+			strconv.Itoa(amount[1]),
+			strconv.Itoa(amount[2]),
 			stock.Stock.ID.String(),
 			stock.Stock.Name,
 			stock.Stock.Format,
 			stock.Stock.Type.String(),
 			stock.Stock.ISO.String(),
 			stock.Stock.Company.Name,
+		)
+	}
+
+	if conf.StockTotals {
+		row(
+			strconv.Itoa(totals[0]),
+			strconv.Itoa(totals[1]),
+			strconv.Itoa(totals[2]),
+			"",
+			"",
+			"",
+			"",
+			"",
+			"",
 		)
 	}
 

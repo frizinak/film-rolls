@@ -52,6 +52,7 @@ func usage(w io.Writer) {
     -md                     output markdown compatible table
                             (implies -f plain, ignores -s)
     -nh                     don't output header
+    -nf                     don't output footer (i.e.: [-m stocks] totals)
     -s  <separator>         (default " │ ")
     -f  <format>            format: plain or pretty (default "pretty")
     -short                  shorter output
@@ -139,7 +140,7 @@ func main() {
 	var format string
 	var mode string
 	var md bool
-	var nh bool
+	var nh, nf bool
 	var dbDir string
 	var addr string
 
@@ -152,6 +153,7 @@ func main() {
 	flag.StringVar(&conf.Separator, "s", conf.Separator, "")
 	flag.BoolVar(&md, "md", false, "")
 	flag.BoolVar(&nh, "nh", false, "")
+	flag.BoolVar(&nf, "nf", false, "")
 	flag.BoolVar(&conf.Short, "short", false, "")
 	flag.BoolVar(&conf.Notes, "notes", false, "")
 	flag.BoolVar(&conf.Labels, "labels", false, "")
@@ -226,8 +228,14 @@ func main() {
 	}
 
 	conf.Header = true
+	conf.StockTotals = true
+
 	if nh {
 		conf.Header = false
+	}
+
+	if nf {
+		conf.StockTotals = false
 	}
 
 	if md {
