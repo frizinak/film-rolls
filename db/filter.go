@@ -35,6 +35,39 @@ func wcMatch(query []string, target string) bool {
 	return true
 }
 
+func intRange(str string) ([]int, bool) {
+	comma := strings.FieldsFunc(str, func(r rune) bool {
+		return r == ',' || r == ' '
+	})
+	r := make([]int, 0, len(comma))
+	for _, n := range comma {
+		dash := strings.SplitN(n, "-", 2)
+		v, err := strconv.Atoi(strings.TrimSpace(dash[0]))
+		if err != nil {
+			return r, false
+		}
+		if len(dash) != 2 {
+			r = append(r, v)
+			continue
+		}
+
+		if len(dash) == 2 {
+			v2, err := strconv.Atoi(strings.TrimSpace(dash[1]))
+			if err != nil {
+				return r, false
+			}
+			if v2 < v {
+				return r, false
+			}
+			for i := v; i <= v2; i++ {
+				r = append(r, i)
+			}
+		}
+	}
+
+	return r, len(r) > 0
+}
+
 type Filter struct {
 	ID  string
 	LID string
@@ -58,6 +91,9 @@ type Filter struct {
 	StockNeg       bool
 	StockPos       bool
 	StockAvailable bool
+
+	StockISO string
+	EI       string
 
 	Since, Until             string
 	SinceLabIn, UntilLabIn   string
@@ -97,6 +133,20 @@ func (f Filter) not(s, val string) bool {
 	return f.notl(strings.Split(s, ","), val)
 }
 
+func (f Filter) notinrange(rng string, valMin, valMax int) bool {
+	options, ok := intRange(rng)
+	if !ok {
+		return false
+	}
+	for _, option := range options {
+		if option >= valMin && option <= valMax {
+			return false
+		}
+	}
+
+	return true
+}
+
 func (f Filter) MatchStock(s *Stock) bool {
 	switch {
 	case f.not(f.SID, f.gID(s)):
@@ -110,6 +160,8 @@ func (f Filter) MatchStock(s *Stock) bool {
 	case f.StockPos && !s.Type.Pos():
 		return false
 	case f.StockNeg && !s.Type.Neg():
+		return false
+	case f.notinrange(f.StockISO, s.ISO.Low, s.ISO.High):
 		return false
 	}
 
@@ -165,6 +217,8 @@ func (f Filter) Match(e Entry) bool {
 		return cmp(t)
 	}
 
+	ei := e.EI()
+
 	switch {
 	case f.not(f.ID, e.State.ID):
 		return false
@@ -201,6 +255,8 @@ func (f Filter) Match(e Entry) bool {
 	case ndate(f.SinceLabOut, e.LabOutDate, e.LabOutDate.Before):
 		return false
 	case ndate(f.UntilLabOut, e.LabOutDate, e.LabOutDate.After):
+		return false
+	case f.notinrange(f.EI, ei, ei):
 		return false
 	}
 

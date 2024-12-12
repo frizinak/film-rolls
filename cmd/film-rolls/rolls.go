@@ -153,6 +153,9 @@ func main() {
 	flag.StringVar(&conf.Filter.Scan, "scan", "", "")
 	flag.StringVar(&conf.Filter.StockFormat, "format", "", "")
 
+	flag.StringVar(&conf.Filter.StockISO, "iso", "", "")
+	flag.StringVar(&conf.Filter.EI, "ei", "", "")
+
 	flag.BoolVar(&conf.Filter.All, "a", false, "")
 	flag.BoolVar(&conf.Filter.StatusUndev, "undev", false, "")
 	flag.BoolVar(&conf.Filter.StatusDev, "dev", false, "")
