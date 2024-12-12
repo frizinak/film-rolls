@@ -220,7 +220,7 @@ func (e Entry) ID(i int) (string, bool) {
 }
 
 func (e Entry) EI() int {
-	if e.RawEI != 0 {
+	if e.RawEI != 0 || e.Stock == nil {
 		return e.RawEI
 	}
 
