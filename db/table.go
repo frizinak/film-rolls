@@ -239,7 +239,7 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 			"ID",
 			"Date",
 			"CID", "Brand", "Model",
-			"SID", "Stock", "Format", "Type", "ISO", "Manufacturer",
+			"SID", "Stock", "Format", "Type", "EI", "Manufacturer",
 			"LID", "Lab Name", "Lab in", "Lab out",
 			"File", "Scan", "Line",
 			"Notes",
@@ -540,7 +540,7 @@ func (db *DB) PrintCameras(w io.Writer, conf TableConfig) {
 	}
 
 	row := func(
-		cameraID, cameraBrand, cameraModel,
+		cameraID, cameraBrand, cameraModel, ei,
 		stockID, stockName, stockFormat, stockType, stockISO, stockCompany string,
 	) {
 		t.NewRow()
@@ -564,22 +564,25 @@ func (db *DB) PrintCameras(w io.Writer, conf TableConfig) {
 
 		rowStock(t, conf, space, nil, stockID, stockName, stockFormat, stockType, stockISO, stockCompany)
 
+		t.AddCol(table.ColFixed(line))
+		t.AddCol(table.ColFixed(table.TermStr(ei)))
+
 		if conf.StartEndWithSeparator {
 			t.AddCol(table.ColFixed(rline))
 		}
 	}
 
 	if conf.Header {
-		row("CID", "Brand", "Model", "SID", "Stock", "Format", "Type", "ISO", "Manufacturer")
+		row("CID", "Brand", "Model", "EI", "SID", "Stock", "Format", "Type", "ISO", "Manufacturer")
 	}
 	if conf.HeaderSep {
 		hs := mdHeaderSep
-		row(hs, hs, hs, hs, hs, hs, hs, hs, hs)
+		row(hs, hs, hs, hs, hs, hs, hs, hs, hs, hs)
 	}
 
 	type c struct {
 		*Camera
-		*Stock
+		Entry  Entry
 		loaded time.Time
 	}
 
@@ -594,7 +597,7 @@ func (db *DB) PrintCameras(w io.Writer, conf TableConfig) {
 		}
 
 		c := cams[e.Camera.ID]
-		c.Stock = e.Stock
+		c.Entry = e
 		c.loaded = e.LoadDate
 	})
 
@@ -604,7 +607,7 @@ func (db *DB) PrintCameras(w io.Writer, conf TableConfig) {
 	}
 
 	slices.SortFunc(sorted, func(i, j *c) int {
-		li, lj := i.Stock == nil, j.Stock == nil
+		li, lj := i.Entry.Stock == nil, j.Entry.Stock == nil
 		switch {
 		case li && !lj:
 			return -1
@@ -623,25 +626,31 @@ func (db *DB) PrintCameras(w io.Writer, conf TableConfig) {
 		if !conf.Filter.MatchCamera(cam.Camera) {
 			continue
 		}
-		if conf.Filter.StatusLoaded && cam.Stock == nil {
+		if conf.Filter.StatusLoaded && cam.Entry.Stock == nil {
 			continue
 		}
-		if conf.Filter.StatusUnloaded && cam.Stock != nil {
+		if conf.Filter.StatusUnloaded && cam.Entry.Stock != nil {
 			continue
+		}
+
+		ei := cam.Entry.EI()
+		eiStr := ""
+		if ei != 0 {
+			eiStr = strconv.Itoa(ei)
 		}
 
 		var stockID, stockName, stockFormat, stockType, stockISO, stockCompany string
-		if cam.Stock != nil {
-			stockID = cam.Stock.ID.String()
-			stockName = cam.Stock.Name
-			stockFormat = cam.Stock.Format
-			stockType = cam.Stock.Type.String()
-			stockISO = cam.Stock.ISO.String()
-			stockCompany = cam.Stock.Company.Name
+		if cam.Entry.Stock != nil {
+			stockID = cam.Entry.Stock.ID.String()
+			stockName = cam.Entry.Stock.Name
+			stockFormat = cam.Entry.Stock.Format
+			stockType = cam.Entry.Stock.Type.String()
+			stockISO = cam.Entry.Stock.ISO.String()
+			stockCompany = cam.Entry.Stock.Company.Name
 		}
 
 		row(
-			cam.Camera.ID.String(), cam.Camera.Brand, cam.Camera.Model,
+			cam.Camera.ID.String(), cam.Camera.Brand, cam.Camera.Model, eiStr,
 			stockID, stockName, stockFormat, stockType, stockISO, stockCompany,
 		)
 	}

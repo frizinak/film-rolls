@@ -243,9 +243,9 @@ func (db *DB) Parse(file string, r io.Reader) error {
 					}
 					switch i {
 					case 0:
-						s.ISO.Low = v
+						s.ISO.Low = int(v)
 					case 1:
-						s.ISO.High = v
+						s.ISO.High = int(v)
 					}
 				}
 				if s.ISO.High == 0 {
@@ -474,11 +474,11 @@ func (db *DB) mkEntry(d time.Time, p []string, scans map[uint]struct{}) (Entry, 
 	stockInfo := strings.SplitN(p[1], "@", 2)
 	sidStr := stockInfo[0]
 	if len(stockInfo) != 1 {
-		iso, err := strconv.ParseUint(strings.TrimLeft(stockInfo[1], "0 _"), 10, 32)
+		ei, err := strconv.ParseUint(strings.TrimLeft(stockInfo[1], "0 _"), 10, 32)
 		if err != nil {
-			return e, errors.New("can't parse iso")
+			return e, errors.New("can't parse exposure index")
 		}
-		e.RawISO = iso
+		e.RawEI = int(ei)
 	}
 
 	sid, err := MkID(sidStr)

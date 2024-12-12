@@ -74,12 +74,12 @@ func (s *Stock) IDString() string {
 }
 
 type ISO struct {
-	Low, High uint64
+	Low, High int
 }
 
 func (iso ISO) String() string {
 	if iso.Low == iso.High {
-		return strconv.FormatUint(iso.Low, 10)
+		return strconv.Itoa(iso.Low)
 	}
 	return fmt.Sprintf("%d-%d", iso.Low, iso.High)
 }
@@ -180,7 +180,7 @@ type Entry struct {
 	Camera *Camera
 	Lab    *Lab
 
-	RawISO uint64
+	RawEI int
 
 	File string
 	Scan uint
@@ -219,17 +219,17 @@ func (e Entry) ID(i int) (string, bool) {
 	return hex.EncodeToString(b), false
 }
 
-func (e Entry) ISO() uint64 {
-	if e.RawISO != 0 {
-		return e.RawISO
+func (e Entry) EI() int {
+	if e.RawEI != 0 {
+		return e.RawEI
 	}
 
 	return e.Stock.ISO.High
 }
 
 func (e Entry) ISOString() string {
-	if e.RawISO != 0 {
-		return strconv.FormatUint(e.RawISO, 10)
+	if e.RawEI != 0 {
+		return strconv.Itoa(e.RawEI)
 	}
 
 	return e.Stock.ISO.String()
