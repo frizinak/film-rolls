@@ -39,15 +39,18 @@ const (
 func usage(w io.Writer) {
 	fmt.Fprint(w, `film-rolls <flags>:
   General:
-    -m <mode>               one of log, stocks, cameras, prices or tags (default "log")
+    -m <mode>               one of log, stocks, cameras, prices or tags
+                            (default "log")
     -l <logdirectory>       directory containing your .log and .def files
-                            which are read in alphabetical order (first .def then .log).
-                            (default $HOME/film-rolls)
+                            which are read in alphabetical order.
+                            First .def then .log. (default $HOME/film-rolls)
     -v                      be verbose
-    -addr  <addr>           listen address e.g: ":8080" or "127.0.0.1:8080" [-m web]
+    -addr  <addr>           listen address e.g: ":8080" or
+                            "127.0.0.1:8080" [-m web]
 
   Output:
-    -md                     output markdown compatible table (implies -f plain, ignores -s)
+    -md                     output markdown compatible table
+                            (implies -f plain, ignores -s)
     -nh                     don't output header
     -s  <separator>         (default " │ ")
     -f  <format>            format: plain or pretty (default "pretty")
@@ -64,16 +67,27 @@ func usage(w io.Writer) {
     -file   <QUERY>         filter by filename
     -scan   <QUERY>         filter by scan
     -format <QUERY>         filter by film format
-             QUERY:         comma separated list of individual queries, supports * wildcards
-                            e.g.: -id 9f*,da930
+             QUERY:         comma separated list of individual queries,
+                            supports * wildcards e.g.: -id 9f*,da930
+  Range filters:
+    -iso <RANGE>            filter by film sensitivity
+    -ei  <RANGE>            filter by exposure index
+          RANGE:            comma separated set of integer ranges
+                            e.g.: 1-3,6 (= 1,2,3,6)
 
   Date Filters:
-    -since         <DATE>   only show rolls loaded in a camera starting from this date
-    -until         <DATE>   only show rolls loaded in a camera until this date (inclusive)
-    -since-lab-in  <DATE>   only show rolls delivered to a lab starting from this date
-    -until-lab-in  <DATE>   only show rolls delivered to a lab until this date (inclusive)
-    -since-lab-out <DATE>   only show rolls retrieved from a lab starting from this date
-    -until-lab-out <DATE>   only show rolls retrieved from a lab until this date (inclusive)
+    -since         <DATE>   only show rolls loaded in a camera starting from
+                            this date
+    -until         <DATE>   only show rolls loaded in a camera until this date
+                            (inclusive)
+    -since-lab-in  <DATE>   only show rolls delivered to a lab starting from
+                            this date
+    -until-lab-in  <DATE>   only show rolls delivered to a lab until this date
+                            (inclusive)
+    -since-lab-out <DATE>   only show rolls retrieved from a lab starting from
+                            this date
+    -until-lab-out <DATE>   only show rolls retrieved from a lab until this
+                            date (inclusive)
                     DATE:   YYYY-MM-DD
 
   Boolean Filters:
