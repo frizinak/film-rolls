@@ -51,8 +51,7 @@ var htmlEsc = map[byte][]byte{
 	'"':  []byte("&#34;"),
 }
 
-func (w *htmlWriter) Write(b []byte) (int, error) {
-	olb := len(b)
+func htmlEscape(b []byte) []byte {
 	for i := 0; i < len(b); i++ {
 		if v, ok := htmlEsc[b[i]]; ok {
 			n := make([]byte, len(v)+len(b)-i-1)
@@ -63,6 +62,12 @@ func (w *htmlWriter) Write(b []byte) (int, error) {
 		}
 	}
 
+	return b
+}
+
+func (w *htmlWriter) Write(b []byte) (int, error) {
+	olb := len(b)
+	b = htmlEscape(b)
 	n, err := w.w.Write(b)
 	if n < len(b) {
 		olb--
@@ -92,6 +97,11 @@ html, body { width: 100%; min-height: 100%; background-color: #333; color: #ccc 
 .diff-del { background-color: #c33; }
 .diff-ins { background-color: #373; }
 .diff-eli { background-color: #555; }
+table { border-collapse: collapse; }
+tr { border-bottom: 1px solid #666; }
+th, td { padding: 2px 8px; }
+td { border-right: 1px solid #666; }
+td:first-child { border-left: 1px solid #666; }
 form [name=confirmed] { display: none; }
 a { color: #ddd; }
 a:hover { color: #fff; }
@@ -300,8 +310,31 @@ a:hover { color: #fff; }
 
 		*conf = confCLI
 		conf.Color = false
+		conf.SeparatorFunc = func(header, start, row bool) string {
+			switch {
+			case header && row && start:
+				return "<thead><tr><th>"
+			case header && row:
+				return "</th></tr></thead>"
+			case header && start:
+				return "<th>"
+			case header:
+				return "</th>"
+			case row && start:
+				return "<tr><td>"
+			case row:
+				return "</td></tr>"
+			case start:
+				return "<td>"
+			}
+
+			return "</td>"
+		}
 		conf.Pretty = false
-		*mode = modeLog
+		conf.Escape = func(s string) string {
+			return string(htmlEscape([]byte(s)))
+		}
+		*mode = modeRolls
 
 		for i := 0; i < len(pathp); i++ {
 			p := pathp[i]
@@ -344,22 +377,26 @@ a:hover { color: #fff; }
 			return
 		}
 
-		header(w, "")
-		fmt.Fprint(w, "<pre>")
-		htmlw := &htmlWriter{w}
+		var do func(io.Writer, db.TableConfig)
+
 		switch *mode {
-		case modeLog:
-			dbase.PrintLogs(htmlw, *conf)
+		case modeRolls:
+			do = dbase.PrintRolls
 		case modeStock:
-			dbase.PrintStocks(htmlw, *conf)
+			do = dbase.PrintStocks
 		case modeCameras:
-			dbase.PrintCameras(htmlw, *conf)
+			do = dbase.PrintCameras
 		case modePrices:
-			dbase.PrintPrices(htmlw, *conf)
+			do = dbase.PrintPrices
 		default:
 			wErr(w, nil, http.StatusNotFound)
+			return
 		}
-		fmt.Fprint(w, "</pre>")
+
+		header(w, "")
+		fmt.Fprint(w, "<table>")
+		do(w, *conf)
+		fmt.Fprint(w, "</table>")
 		footer(w)
 	}))
 }

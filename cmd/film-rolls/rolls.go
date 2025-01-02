@@ -27,20 +27,21 @@ const (
 	formatPlain  = "plain"
 	formatPretty = "pretty"
 
-	modeLog     = "log"
+	modeRolls   = "rolls"
 	modeStock   = "stocks"
 	modePrices  = "prices"
 	modeCameras = "cameras"
 	modeTags    = "tags"
 	modeIDs     = "ids"
 	modeWeb     = "web"
+	modeFormat  = "format"
 )
 
 func usage(w io.Writer) {
 	fmt.Fprint(w, `film-rolls <flags>:
   General:
-    -m <mode>               one of log, stocks, cameras, prices or tags
-                            (default "log")
+    -m <mode>               one of rolls, stocks, cameras, prices, tags or
+                            format (default "rolls")
     -l <logdirectory>       directory containing your .log and .def files
                             which are read in alphabetical order.
                             First .def then .log. (default $HOME/film-rolls)
@@ -143,14 +144,15 @@ func main() {
 	var nh, nf bool
 	var dbDir string
 	var addr string
+	var separator string
 
 	conf := db.TableConfigDefault()
 	flag.BoolVar(&verbose, "v", false, "")
 	flag.StringVar(&dbDir, "l", "", "")
-	flag.StringVar(&mode, "m", modeLog, "")
+	flag.StringVar(&mode, "m", modeRolls, "")
 	flag.StringVar(&addr, "addr", ":8080", "")
 	flag.StringVar(&format, "f", formatPretty, "")
-	flag.StringVar(&conf.Separator, "s", conf.Separator, "")
+	flag.StringVar(&separator, "s", " \u2502 ", "")
 	flag.BoolVar(&md, "md", false, "")
 	flag.BoolVar(&nh, "nh", false, "")
 	flag.BoolVar(&nf, "nf", false, "")
@@ -238,12 +240,24 @@ func main() {
 		conf.StockTotals = false
 	}
 
+	conf.SeparatorFunc = func(header, start, row bool) string {
+		if row || start {
+			return ""
+		}
+
+		return separator
+	}
+
 	if md {
-		// conf.Header = true
 		conf.HeaderSep = true
 		conf.Separator = " | "
-		conf.StartEndWithSeparator = true
 		format = formatPlain
+		conf.SeparatorFunc = func(header, start, row bool) string {
+			if !row && start {
+				return ""
+			}
+			return " | "
+		}
 	}
 
 	conf.Color = format == formatPretty
@@ -252,10 +266,17 @@ func main() {
 
 	var run func(db *db.DB)
 	switch mode {
-	case modeLog:
+	case modeFormat:
+		run = func(d *db.DB) {
+			d.Row(conf.Filter, func(e db.Entry) {
+				exit(d.WriteEntry(os.Stdout, e))
+			})
+		}
+
+	case modeRolls:
 		conf.Width = termWidth()
 		run = func(db *db.DB) {
-			db.PrintLogs(os.Stdout, conf)
+			db.PrintRolls(os.Stdout, conf)
 		}
 
 	case modeStock:

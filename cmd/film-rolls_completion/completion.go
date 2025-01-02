@@ -100,12 +100,13 @@ func main() {
 	}
 
 	allFlags := []flag{
-		{name: "m", options: func() []string { return []string{"log", "stocks", "prices", "cameras", "tags", "web"} }},
+		{name: "m", options: func() []string { return []string{"rolls", "stocks", "prices", "cameras", "tags", "web", "format"} }},
 		{name: "l", options: file},
 		{name: "v", options: noFile},
 		{name: "addr", options: noFile},
 		{name: "md", options: noFile},
 		{name: "nh", options: noFile},
+		{name: "nf", options: noFile},
 		{name: "s", options: noFile},
 		{name: "f", options: func() []string { return []string{"plain", "pretty"} }},
 		{name: "short", options: noFile},
@@ -138,6 +139,8 @@ func main() {
 		{name: "since-lab-out", options: date},
 		{name: "until-lab-out", options: date},
 		{name: "a", options: noFile},
+		{name: "iso", options: noFile},
+		{name: "ei", options: noFile},
 	}
 
 	var opts []string

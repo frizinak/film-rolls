@@ -284,6 +284,6 @@ func (db *DB) Row(filter Filter, row func(e Entry)) {
 
 func (db *DB) String() string {
 	buf := bytes.NewBuffer(nil)
-	db.PrintLogs(buf, defaultConf)
+	db.PrintRolls(buf, defaultConf)
 	return buf.String()
 }

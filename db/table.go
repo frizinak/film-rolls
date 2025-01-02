@@ -20,6 +20,8 @@ const (
 	SortScan
 )
 
+type FieldFunc func(header, start, row bool) string
+
 type TableConfig struct {
 	Filter Filter
 
@@ -32,10 +34,12 @@ type TableConfig struct {
 
 	Sort Sort
 
-	Header                bool
-	HeaderSep             bool
-	Separator             string
-	StartEndWithSeparator bool
+	Header    bool
+	HeaderSep bool
+
+	Separator     string
+	SeparatorFunc FieldFunc
+	Escape        func(string) string
 
 	Width int
 
@@ -43,7 +47,14 @@ type TableConfig struct {
 }
 
 var defaultConf = TableConfig{
-	Separator: " \u2502 ",
+	Escape: func(s string) string { return s },
+	SeparatorFunc: func(header, start, row bool) string {
+		if row || start {
+			return ""
+		}
+
+		return " \u2502 "
+	},
 }
 
 func TableConfigDefault() TableConfig { return defaultConf }
@@ -59,9 +70,9 @@ func mdHeaderRightSep(headerSep string) string {
 }
 
 func rowStock(
+	header, start, row bool,
 	t *table.Table,
 	conf TableConfig,
-	space table.Col,
 	clrReset func() string,
 	stockID, stockName, stockFormat, stockType, stockISO, stockCompany string,
 ) {
@@ -78,6 +89,25 @@ func rowStock(
 		}
 	}
 
+	space := table.ColFixed(table.TermStr(" "))
+	sep := func(header, start, row bool) {
+		if sep := conf.SeparatorFunc(header, start, row); sep != "" {
+			t.AddCol(table.ColFixed(table.TermStr(sep)))
+		}
+	}
+	sepSpace := func(header, start, row bool) {
+		if conf.Pretty {
+			if start {
+				t.AddCol(space)
+			}
+			return
+		}
+		if sep := conf.SeparatorFunc(header, start, row); sep != "" {
+			t.AddCol(table.ColFixed(table.TermStr(sep)))
+		}
+	}
+
+	sep(header, true, start && row)
 	t.AddCol(table.ColFixed(table.ColPreSuf(
 		table.TermStr(stockID),
 		clr("\033[38;5;244m"),
@@ -85,36 +115,41 @@ func rowStock(
 	)))
 
 	if !conf.Short {
-		t.AddCol(table.ColFixed(space))
+		sepSpace(header, false, false)
+
+		sepSpace(header, true, false)
 		t.AddCol(table.ColAlignRight(table.ColFixed(table.TermStr(mdHeaderRightSep(stockFormat)))))
-		t.AddCol(table.ColFixed(space))
+		sepSpace(header, false, false)
+
+		sepSpace(header, true, false)
 		t.AddCol(table.ColAlignRight(table.ColFixed(table.TermStr(mdHeaderRightSep(stockType)))))
-		t.AddCol(table.ColFixed(space))
+		sepSpace(header, false, false)
+
+		sepSpace(header, true, false)
 		t.AddCol(table.ColFixed(table.ColPreSuf(
 			table.TermStr(stockCompany),
 			clr("\033[32m"),
 			clrReset(),
 		)))
-		t.AddCol(table.ColFixed(space))
+		sepSpace(header, false, false)
+
+		sepSpace(header, true, false)
 		t.AddCol(table.ColFixed(table.ColPreSuf(
 			table.TermStr(stockName),
 			clr("\033[32m"),
 			clrReset(),
 		)))
-		t.AddCol(table.ColFixed(space))
+		sepSpace(header, false, false)
+
+		sepSpace(header, true, false)
 		t.AddCol(table.ColAlignRight(table.ColFixed(table.TermStr(mdHeaderRightSep(stockISO)))))
 	}
+
+	sep(header, false, !start && row)
 }
 
-func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
+func (db *DB) PrintRolls(w io.Writer, conf TableConfig) {
 	t := table.New()
-	space := table.TermStr(" ")
-	line := table.TermStr(conf.Separator)
-	lline := table.TermStr(strings.TrimLeft(conf.Separator, " "))
-	rline := table.TermStr(strings.TrimRight(conf.Separator, " "))
-	if !conf.Pretty {
-		space = line
-	}
 
 	zebra := true
 	bgclr := func(prefix ...string) string {
@@ -142,7 +177,26 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 		return clr("\033[0m") + bgclr()
 	}
 
+	space := table.ColFixed(table.TermStr(" "))
+	sep := func(header, start, row bool) {
+		if sep := conf.SeparatorFunc(header, start, row); sep != "" {
+			t.AddCol(table.ColFixed(table.TermStr(sep)))
+		}
+	}
+	sepSpace := func(header, start, row bool) {
+		if conf.Pretty {
+			if start {
+				t.AddCol(space)
+			}
+			return
+		}
+		if sep := conf.SeparatorFunc(header, start, row); sep != "" {
+			t.AddCol(table.ColFixed(table.TermStr(sep)))
+		}
+	}
+
 	row := func(
+		header bool,
 		loaded bool,
 		loadedString,
 		id,
@@ -156,16 +210,16 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 		t.NewRow()
 
 		t.AddCol(table.ColFixed(table.Str(bgclr(" "))))
-		if conf.StartEndWithSeparator {
-			t.AddCol(table.ColFixed(lline))
-		}
+		sep(header, true, true)
 
 		t.AddCol(table.ColFixed(table.TermStr(date)))
-		t.AddCol(table.ColFixed(line))
+		sep(header, false, false)
 
+		sep(header, true, false)
 		t.AddCol(table.ColFixed(table.TermStr(id)))
-		t.AddCol(table.ColFixed(line))
+		sep(header, false, false)
 
+		sep(header, true, false)
 		cidClr := "\033[38;5;244m"
 		if conf.Short && loaded {
 			cidClr = "\033[31m"
@@ -177,28 +231,37 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 		)))
 
 		if !conf.Short {
-			t.AddCol(table.ColFixed(space))
 			camPrefix, camSuffix := "", ""
 			if loaded && conf.Color {
 				camPrefix = "\033[31m"
 				camSuffix = clrReset()
 			}
+			sepSpace(header, false, false)
 
+			sepSpace(header, true, false)
 			t.AddCol(table.ColFixed(table.ColPreSuf(table.TermStr(cameraBrand), camPrefix, camSuffix)))
-			t.AddCol(table.ColFixed(space))
+			sepSpace(header, false, false)
+
+			sepSpace(header, true, false)
 			t.AddCol(table.ColFixed(table.ColPreSuf(table.TermStr(cameraModel), camPrefix, camSuffix)))
 		}
-
-		t.AddCol(table.ColFixed(line))
+		sep(header, false, false)
 
 		if !conf.Color {
+			sep(header, true, false)
 			t.AddCol(table.ColFixed(table.TermStr(loadedString)))
-			t.AddCol(table.ColFixed(line))
+			sep(header, false, false)
 		}
 
-		rowStock(t, conf, space, clrReset, stockID, stockName, stockFormat, stockType, ISO, stockCompany)
-		t.AddCol(table.ColFixed(line))
+		rowStock(
+			header, false, false,
+			t,
+			conf,
+			clrReset,
+			stockID, stockName, stockFormat, stockType, ISO, stockCompany,
+		)
 
+		sep(header, true, false)
 		t.AddCol(table.ColFixed(table.ColPreSuf(
 			table.TermStr(labID),
 			clr("\033[38;5;244m"),
@@ -206,29 +269,37 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 		)))
 
 		if !conf.Short {
-			t.AddCol(table.ColFixed(space))
+			sepSpace(header, false, false)
+
+			sepSpace(header, true, false)
 			t.AddCol(table.ColFixed(table.TermStr(labName)))
-			t.AddCol(table.ColFixed(space))
+			sepSpace(header, false, false)
+
+			sepSpace(header, true, false)
 			t.AddCol(table.ColFixed(table.TermStr(labInDate)))
-			t.AddCol(table.ColFixed(space))
+			sepSpace(header, false, false)
+
+			sepSpace(header, true, false)
 			t.AddCol(table.ColFixed(table.TermStr(labOutDate)))
 		}
+		sep(header, false, false)
 
-		t.AddCol(table.ColFixed(line))
-
+		sep(header, true, false)
 		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(mdHeaderRightSep(file)))))
-		t.AddCol(table.ColFixed(line))
+		sep(header, false, false)
+
+		sep(header, true, false)
 		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(mdHeaderRightSep(scan)))))
-		t.AddCol(table.ColFixed(line))
+		sep(header, false, false)
+
+		sep(header, true, false)
 		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(mdHeaderRightSep(linenr)))))
+		sep(header, false, !conf.Notes && !conf.Labels)
 
 		if conf.Notes || conf.Labels {
-			t.AddCol(table.ColFixed(line))
+			sep(header, true, false)
 			t.AddCol(table.TermStr(note))
-		}
-
-		if conf.StartEndWithSeparator {
-			t.AddCol(table.ColFixed(rline))
+			sep(header, false, true)
 		}
 
 		t.AddCol(table.ColFixed(table.Str(clr(" \033[0m"))))
@@ -236,6 +307,7 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 
 	if conf.Header {
 		row(
+			true,
 			false,
 			"Loaded",
 			"ID",
@@ -251,6 +323,7 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 	if conf.HeaderSep {
 		hs := mdHeaderSep
 		row(
+			true,
 			false,
 			hs,
 			hs,
@@ -329,21 +402,24 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 		}
 
 		zebra = !zebra
+		esc := conf.Escape
 		row(
+			false,
 			e.State.Loaded,
 			loadedString,
-			e.State.ID,
+			esc(e.State.ID),
 			e.LoadDate.Format(dateFormat),
-			e.Camera.ID.String(), e.Camera.Brand, e.Camera.Model,
-			e.Stock.ID.String(), e.Stock.Name, e.Stock.Format, e.Stock.Type.String(), e.ISOString(), e.Stock.Company.Name,
-			labID, labName, labInDate, labOutDate,
-			e.File, scan, fmt.Sprintf("%d", e.Line),
-			note1,
+			esc(e.Camera.ID.String()), esc(e.Camera.Brand), esc(e.Camera.Model),
+			esc(e.Stock.ID.String()), esc(e.Stock.Name), esc(e.Stock.Format), esc(e.Stock.Type.String()), esc(e.ISOString()), esc(e.Stock.Company.Name),
+			esc(labID), esc(labName), esc(labInDate), esc(labOutDate),
+			esc(e.File), esc(scan), fmt.Sprintf("%d", e.Line),
+			esc(note1),
 		)
 
 		if len(notes) > 1 {
 			for _, note := range notes[1:] {
 				row(
+					false,
 					false,
 					"",
 					"",
@@ -352,7 +428,7 @@ func (db *DB) PrintLogs(w io.Writer, conf TableConfig) {
 					"", "", "", "", "", "",
 					"", "", "", "",
 					"", "", "",
-					note,
+					esc(note),
 				)
 			}
 		}
@@ -409,47 +485,48 @@ func (db *DB) PrintTags(w io.Writer, filter Filter) {
 
 func (db *DB) PrintStocks(w io.Writer, conf TableConfig) {
 	t := table.New()
-	space := table.TermStr(" ")
-	line := table.TermStr(conf.Separator)
-	lline := table.TermStr(strings.TrimLeft(conf.Separator, " "))
-	rline := table.TermStr(strings.TrimRight(conf.Separator, " "))
 
-	if !conf.Pretty {
-		space = line
+	sep := func(header, start, row bool) {
+		if sep := conf.SeparatorFunc(header, start, row); sep != "" {
+			t.AddCol(table.ColFixed(table.TermStr(sep)))
+		}
 	}
 
 	row := func(
+		header bool,
 		available, shot, total,
 		stockID, stockName, stockFormat, stockType, stockISO, stockCompany string,
 	) {
 		t.NewRow()
 
-		if conf.StartEndWithSeparator {
-			t.AddCol(table.ColFixed(lline))
-		}
+		sep(header, true, true)
 
 		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(mdHeaderRightSep(available)))))
-		t.AddCol(table.ColFixed(line))
+		sep(header, false, false)
 
+		sep(header, true, false)
 		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(mdHeaderRightSep(shot)))))
-		t.AddCol(table.ColFixed(line))
+		sep(header, false, false)
 
+		sep(header, true, false)
 		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(mdHeaderRightSep(total)))))
-		t.AddCol(table.ColFixed(line))
+		sep(header, false, false)
 
-		rowStock(t, conf, space, nil, stockID, stockName, stockFormat, stockType, stockISO, stockCompany)
-
-		if conf.StartEndWithSeparator {
-			t.AddCol(table.ColFixed(rline))
-		}
+		rowStock(
+			header, false, true,
+			t,
+			conf,
+			nil,
+			stockID, stockName, stockFormat, stockType, stockISO, stockCompany,
+		)
 	}
 
 	if conf.Header {
-		row("Avail", "Shot", "Total", "SID", "Stock", "Format", "Type", "ISO", "Manufacturer")
+		row(true, "Avail", "Shot", "Total", "SID", "Stock", "Format", "Type", "ISO", "Manufacturer")
 	}
 	if conf.HeaderSep {
 		hs := mdHeaderSep
-		row(hs, hs, hs, hs, hs, hs, hs, hs, hs)
+		row(true, hs, hs, hs, hs, hs, hs, hs, hs, hs)
 	}
 
 	type s struct {
@@ -491,6 +568,7 @@ func (db *DB) PrintStocks(w io.Writer, conf TableConfig) {
 		})
 	}
 
+	esc := conf.Escape
 	var totals, amount [3]int
 	for _, stock := range sorted {
 		if !conf.Filter.MatchStock(stock.Stock) {
@@ -512,20 +590,22 @@ func (db *DB) PrintStocks(w io.Writer, conf TableConfig) {
 			totals[i] += amount[i]
 		}
 		row(
+			false,
 			strconv.Itoa(amount[0]),
 			strconv.Itoa(amount[1]),
 			strconv.Itoa(amount[2]),
-			stock.Stock.ID.String(),
-			stock.Stock.Name,
-			stock.Stock.Format,
-			stock.Stock.Type.String(),
-			stock.Stock.ISO.String(),
-			stock.Stock.Company.Name,
+			esc(stock.Stock.ID.String()),
+			esc(stock.Stock.Name),
+			esc(stock.Stock.Format),
+			esc(stock.Stock.Type.String()),
+			esc(stock.Stock.ISO.String()),
+			esc(stock.Stock.Company.Name),
 		)
 	}
 
 	if conf.StockTotals {
 		row(
+			false,
 			strconv.Itoa(totals[0]),
 			strconv.Itoa(totals[1]),
 			strconv.Itoa(totals[2]),
@@ -546,13 +626,22 @@ func (db *DB) PrintStocks(w io.Writer, conf TableConfig) {
 
 func (db *DB) PrintCameras(w io.Writer, conf TableConfig) {
 	t := table.New()
-	space := table.TermStr(" ")
-	line := table.TermStr(conf.Separator)
-	lline := table.TermStr(strings.TrimLeft(conf.Separator, " "))
-	rline := table.TermStr(strings.TrimRight(conf.Separator, " "))
-
-	if !conf.Pretty {
-		space = line
+	space := table.ColFixed(table.TermStr(" "))
+	sep := func(header, start, row bool) {
+		if sep := conf.SeparatorFunc(header, start, row); sep != "" {
+			t.AddCol(table.ColFixed(table.TermStr(sep)))
+		}
+	}
+	sepSpace := func(header, start, row bool) {
+		if conf.Pretty {
+			if start {
+				t.AddCol(space)
+			}
+			return
+		}
+		if sep := conf.SeparatorFunc(header, start, row); sep != "" {
+			t.AddCol(table.ColFixed(table.TermStr(sep)))
+		}
 	}
 
 	clr := func(seq string) string {
@@ -563,44 +652,49 @@ func (db *DB) PrintCameras(w io.Writer, conf TableConfig) {
 	}
 
 	row := func(
+		header bool,
 		cameraID, cameraBrand, cameraModel, ei,
 		stockID, stockName, stockFormat, stockType, stockISO, stockCompany string,
 	) {
 		t.NewRow()
 
-		if conf.StartEndWithSeparator {
-			t.AddCol(table.ColFixed(lline))
-		}
-
+		sep(header, true, true)
 		t.AddCol(table.ColFixed(table.ColPreSuf(
 			table.TermStr(cameraID),
 			clr("\033[38;5;244m"),
 			clr("\033[0m"),
 		)))
 		if !conf.Short {
-			t.AddCol(table.ColFixed(space))
+			sepSpace(header, false, false)
+
+			sepSpace(header, true, false)
 			t.AddCol(table.ColFixed(table.TermStr(cameraBrand)))
-			t.AddCol(table.ColFixed(space))
+			sepSpace(header, false, false)
+
+			sepSpace(header, true, false)
 			t.AddCol(table.ColFixed(table.TermStr(cameraModel)))
 		}
-		t.AddCol(table.ColFixed(line))
+		sep(header, false, false)
 
-		rowStock(t, conf, space, nil, stockID, stockName, stockFormat, stockType, stockISO, stockCompany)
+		rowStock(
+			header, false, false,
+			t,
+			conf,
+			nil,
+			stockID, stockName, stockFormat, stockType, stockISO, stockCompany,
+		)
 
-		t.AddCol(table.ColFixed(line))
+		sep(header, true, false)
 		t.AddCol(table.ColFixed(table.TermStr(ei)))
-
-		if conf.StartEndWithSeparator {
-			t.AddCol(table.ColFixed(rline))
-		}
+		sep(header, false, true)
 	}
 
 	if conf.Header {
-		row("CID", "Brand", "Model", "EI", "SID", "Stock", "Format", "Type", "ISO", "Manufacturer")
+		row(true, "CID", "Brand", "Model", "EI", "SID", "Stock", "Format", "Type", "ISO", "Manufacturer")
 	}
 	if conf.HeaderSep {
 		hs := mdHeaderSep
-		row(hs, hs, hs, hs, hs, hs, hs, hs, hs, hs)
+		row(true, hs, hs, hs, hs, hs, hs, hs, hs, hs, hs)
 	}
 
 	type c struct {
@@ -673,6 +767,7 @@ func (db *DB) PrintCameras(w io.Writer, conf TableConfig) {
 		}
 
 		row(
+			false,
 			cam.Camera.ID.String(), cam.Camera.Brand, cam.Camera.Model, eiStr,
 			stockID, stockName, stockFormat, stockType, stockISO, stockCompany,
 		)
@@ -686,16 +781,14 @@ func (db *DB) PrintCameras(w io.Writer, conf TableConfig) {
 
 func (db *DB) PrintPrices(w io.Writer, conf TableConfig) {
 	t := table.New()
-	space := table.TermStr(" ")
-	line := table.TermStr(conf.Separator)
-	lline := table.TermStr(strings.TrimLeft(conf.Separator, " "))
-	rline := table.TermStr(strings.TrimRight(conf.Separator, " "))
-
-	if !conf.Pretty {
-		space = line
+	sep := func(header, start, row bool) {
+		if sep := conf.SeparatorFunc(header, start, row); sep != "" {
+			t.AddCol(table.ColFixed(table.TermStr(sep)))
+		}
 	}
 
 	row := func(
+		header bool,
 		bestPrice bool, bestPriceString string,
 		perUnit, price, amount,
 		store,
@@ -709,40 +802,44 @@ func (db *DB) PrintPrices(w io.Writer, conf TableConfig) {
 			priceSuffix = "\033[0m"
 		}
 
-		if conf.StartEndWithSeparator {
-			t.AddCol(table.ColFixed(lline))
-		}
+		sep(header, true, true)
 
 		t.AddCol(table.ColFixed(table.ColPreSuf(
 			table.ColAlignRight(table.TermStr(mdHeaderRightSep(perUnit))),
 			pricePrefix,
 			priceSuffix,
 		)))
-		t.AddCol(table.ColFixed(line))
+		sep(header, false, false)
 
+		sep(header, true, false)
 		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(mdHeaderRightSep(price)))))
-		t.AddCol(table.ColFixed(line))
+		sep(header, false, false)
 
+		sep(header, true, false)
 		t.AddCol(table.ColFixed(table.ColAlignRight(table.TermStr(mdHeaderRightSep(amount)))))
-		t.AddCol(table.ColFixed(line))
+		sep(header, false, false)
 
-		rowStock(t, conf, space, nil, stockID, stockName, stockFormat, stockType, stockISO, stockCompany)
-		t.AddCol(table.ColFixed(line))
+		rowStock(header, false, false,
+			t,
+			conf,
+			nil,
+			stockID, stockName, stockFormat, stockType, stockISO, stockCompany,
+		)
 
+		sep(header, true, false)
 		t.AddCol(table.ColFixed(table.TermStr(store)))
+		sep(header, false, conf.Color)
 
 		if !conf.Color {
-			t.AddCol(table.ColFixed(line))
+			sep(header, true, false)
 			t.AddCol(table.ColFixed(table.TermStr(bestPriceString)))
-		}
-
-		if conf.StartEndWithSeparator {
-			t.AddCol(table.ColFixed(rline))
+			sep(header, false, true)
 		}
 	}
 
 	if conf.Header {
 		row(
+			true,
 			false, "Best Price",
 			"Price", "Total", "Amount",
 			"Store",
@@ -752,6 +849,7 @@ func (db *DB) PrintPrices(w io.Writer, conf TableConfig) {
 	if conf.HeaderSep {
 		hs := mdHeaderSep
 		row(
+			true,
 			false,
 			hs,
 			hs, hs, hs,
@@ -800,6 +898,7 @@ func (db *DB) PrintPrices(w io.Writer, conf TableConfig) {
 			bestPriceString = "yes"
 		}
 		row(
+			false,
 			best, bestPriceString,
 			strconv.FormatFloat(p.PerUnit, 'f', p.Precision, 64),
 			strconv.FormatFloat(p.Price, 'f', p.Precision, 64),

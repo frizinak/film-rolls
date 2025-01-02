@@ -113,16 +113,17 @@ func finalize(db *DB) error {
 		}
 
 		var id string
-		const n = 5
+		const n = 4
 		try := 0
 		for {
+			l := n + try/50
 			idl, static := e.ID(try)
 			if static {
 				id = idl
 				break
 			}
 
-			id = idl[:n]
+			id = idl[:l]
 			if _, ok := ids[id]; !ok {
 				break
 			}
@@ -761,17 +762,14 @@ func writeEntry(w *writer, e Entry) error {
 
 	var isb []byte
 	{
-		const f = 4
-		is := []byte(e.ISOString())
-		isb = is
-		if len(is) < f {
-			isb = make([]byte, f)
-			for i := 0; i < len(isb)-len(is); i++ {
-				isb[i] = '_'
+		isb = []byte(e.ISOString())
+		e := 4 - len(isb)
+		if e > 0 {
+			pad := make([]byte, e)
+			for i := range pad {
+				pad[i] = ' '
 			}
-			if len(is) <= len(isb) {
-				copy(isb[len(isb)-len(is):], is)
-			}
+			isb = append(isb, pad...)
 		}
 	}
 
@@ -788,6 +786,9 @@ func writeEntry(w *writer, e Entry) error {
 	)
 
 	w.p("%s\n", strings.TrimRight(f, " "))
+	if !e.Labels.Has("id") {
+		w.indent().p("+id:%s\n", e.State.ID)
+	}
 	for _, n := range e.RawNote {
 		w.indent().p("%s\n", n)
 	}
