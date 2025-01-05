@@ -227,11 +227,11 @@ func (e Entry) EI() int {
 	return e.Stock.ISO.High
 }
 
-func (e Entry) ISOString() string {
-	if e.RawEI != 0 {
-		return strconv.Itoa(e.RawEI)
-	}
+func (e Entry) EIString() string {
+	return strconv.Itoa(e.EI())
+}
 
+func (e Entry) ISOString() string {
 	return e.Stock.ISO.String()
 }
 

@@ -762,7 +762,7 @@ func writeEntry(w *writer, e Entry) error {
 
 	var isb []byte
 	{
-		isb = []byte(e.ISOString())
+		isb = []byte(e.EIString())
 		e := 4 - len(isb)
 		if e > 0 {
 			pad := make([]byte, e)

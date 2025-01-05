@@ -410,7 +410,7 @@ func (db *DB) PrintRolls(w io.Writer, conf TableConfig) {
 			esc(e.State.ID),
 			e.LoadDate.Format(dateFormat),
 			esc(e.Camera.ID.String()), esc(e.Camera.Brand), esc(e.Camera.Model),
-			esc(e.Stock.ID.String()), esc(e.Stock.Name), esc(e.Stock.Format), esc(e.Stock.Type.String()), esc(e.ISOString()), esc(e.Stock.Company.Name),
+			esc(e.Stock.ID.String()), esc(e.Stock.Name), esc(e.Stock.Format), esc(e.Stock.Type.String()), esc(e.EIString()), esc(e.Stock.Company.Name),
 			esc(labID), esc(labName), esc(labInDate), esc(labOutDate),
 			esc(e.File), esc(scan), fmt.Sprintf("%d", e.Line),
 			esc(note1),
@@ -453,6 +453,7 @@ func (db *DB) PrintTags(w io.Writer, filter Filter) {
 		list = append(list, fmt.Sprintf("camera:%s-%s", clean(e.Camera.Brand), clean(e.Camera.Model)))
 		list = append(list, fmt.Sprintf("film:%s-%s", clean(e.Stock.Company.Name), clean(e.Stock.Name)))
 		list = append(list, fmt.Sprintf("iso:%s", clean(e.ISOString())))
+		list = append(list, fmt.Sprintf("ei:%s", clean(e.EIString())))
 		list = append(list, fmt.Sprintf("format:%s", clean(e.Stock.Format)))
 		list = append(list, fmt.Sprintf("type:%s", clean(e.Stock.Type.String())))
 		if !e.Lab.None() {
