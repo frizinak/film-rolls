@@ -773,8 +773,13 @@ func writeEntry(w *writer, e Entry) error {
 		}
 	}
 
+	hide := ""
+	if e.Hide {
+		hide = "! "
+	}
 	f := fmt.Sprintf(
-		"%s %s@%s %s %s %s %s %s",
+		"%s%s %s@%s %s %s %s %s %s",
+		hide,
 		e.LoadDate.Format(dateFormat),
 		string(e.Stock.ID),
 		isb,

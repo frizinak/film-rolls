@@ -268,6 +268,7 @@ func main() {
 	switch mode {
 	case modeFormat:
 		run = func(d *db.DB) {
+			conf.Filter.All = true
 			d.Row(conf.Filter, func(e db.Entry) {
 				exit(d.WriteEntry(os.Stdout, e))
 			})
