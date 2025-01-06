@@ -348,6 +348,11 @@ func (db *DB) PrintRolls(w io.Writer, conf TableConfig) {
 			})
 
 			slices.SortFunc(list, func(a, b Entry) int {
+				c := cmp.Compare(a.File, b.File)
+				if c != 0 {
+					return c
+				}
+
 				return cmp.Compare(a.Scan, b.Scan)
 			})
 
