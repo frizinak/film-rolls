@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"fmt"
 	"io"
+	"math"
 	"slices"
 	"sort"
 	"strconv"
@@ -353,6 +354,13 @@ func (db *DB) PrintRolls(w io.Writer, conf TableConfig) {
 					return c
 				}
 
+				if a.Scan == 0 {
+					a.Scan = math.MaxUint
+				}
+				if b.Scan == 0 {
+					b.Scan = math.MaxUint
+				}
+
 				return cmp.Compare(a.Scan, b.Scan)
 			})
 
@@ -465,7 +473,7 @@ func (db *DB) PrintTags(w io.Writer, filter Filter) {
 			list = append(list, fmt.Sprintf("lab:%s", clean(e.Lab.Name)))
 		}
 		if e.Scan != 0 {
-			list = append(list, fmt.Sprintf("scan:%04d", e.Scan))
+			list = append(list, fmt.Sprintf("scan:%03d", e.Scan))
 		}
 
 		tags := make(map[string]struct{}, 0)

@@ -1,6 +1,7 @@
 package db
 
 import (
+	"flag"
 	"strconv"
 	"strings"
 	"time"
@@ -100,6 +101,42 @@ type Filter struct {
 	SinceLabOut, UntilLabOut string
 
 	All bool
+}
+
+func DefineFilterFlags(f *Filter, fl *flag.FlagSet) {
+	fl.StringVar(&f.ID, "id", "", "")
+	fl.StringVar(&f.LID, "lid", "", "")
+	fl.StringVar(&f.SID, "sid", "", "")
+	fl.StringVar(&f.CID, "cid", "", "")
+	fl.StringVar(&f.File, "file", "", "")
+	fl.StringVar(&f.Scan, "scan", "", "")
+	fl.StringVar(&f.StockFormat, "format", "", "")
+
+	fl.StringVar(&f.StockISO, "iso", "", "")
+	fl.StringVar(&f.EI, "ei", "", "")
+
+	fl.BoolVar(&f.All, "a", false, "")
+	fl.BoolVar(&f.StatusUndev, "undev", false, "")
+	fl.BoolVar(&f.StatusDev, "dev", false, "")
+	fl.BoolVar(&f.StatusLab, "lab", false, "")
+	fl.BoolVar(&f.StatusScanned, "scanned", false, "")
+	fl.BoolVar(&f.StatusUnscanned, "unscanned", false, "")
+	fl.BoolVar(&f.StatusLoaded, "loaded", false, "")
+	fl.BoolVar(&f.StatusUnloaded, "unloaded", false, "")
+	fl.BoolVar(&f.StockColor, "color", false, "")
+	fl.BoolVar(&f.StockBW, "bw", false, "")
+	fl.BoolVar(&f.StockPos, "pos", false, "")
+	fl.BoolVar(&f.StockNeg, "neg", false, "")
+	fl.BoolVar(&f.StockAvailable, "available", false, "")
+
+	fl.StringVar(&f.Since, "since", "", "")
+	fl.StringVar(&f.Until, "until", "", "")
+
+	fl.StringVar(&f.SinceLabIn, "since-lab-in", "", "")
+	fl.StringVar(&f.UntilLabIn, "until-lab-in", "", "")
+
+	fl.StringVar(&f.SinceLabOut, "since-lab-out", "", "")
+	fl.StringVar(&f.UntilLabOut, "until-lab-out", "", "")
 }
 
 type idable interface {

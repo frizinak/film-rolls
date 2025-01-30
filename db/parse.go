@@ -757,7 +757,7 @@ func writeEntry(w *writer, e Entry) error {
 		labout = e.LabOutDate.Format(dateFormat)
 	}
 	if e.Scan != 0 {
-		scan = fmt.Sprintf("%04d", e.Scan)
+		scan = fmt.Sprintf("%03d", e.Scan)
 	}
 
 	var isb []byte

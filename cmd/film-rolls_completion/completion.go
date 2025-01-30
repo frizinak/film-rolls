@@ -159,7 +159,11 @@ func main() {
 		}
 	}
 
-	for _, n := range filter(opts, comp) {
+	list := filter(opts, comp)
+	if len(list) == 0 {
+		list = filter(opts, strings.ToUpper(comp))
+	}
+	for _, n := range list {
 		os.Stdout.WriteString(n)
 		os.Stdout.WriteString("\n")
 	}

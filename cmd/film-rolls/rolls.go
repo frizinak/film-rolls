@@ -163,39 +163,7 @@ func main() {
 	var sort = SortVar{&conf.Sort}
 	flag.Var(&sort, "sort", "")
 
-	flag.StringVar(&conf.Filter.ID, "id", "", "")
-	flag.StringVar(&conf.Filter.LID, "lid", "", "")
-	flag.StringVar(&conf.Filter.SID, "sid", "", "")
-	flag.StringVar(&conf.Filter.CID, "cid", "", "")
-	flag.StringVar(&conf.Filter.File, "file", "", "")
-	flag.StringVar(&conf.Filter.Scan, "scan", "", "")
-	flag.StringVar(&conf.Filter.StockFormat, "format", "", "")
-
-	flag.StringVar(&conf.Filter.StockISO, "iso", "", "")
-	flag.StringVar(&conf.Filter.EI, "ei", "", "")
-
-	flag.BoolVar(&conf.Filter.All, "a", false, "")
-	flag.BoolVar(&conf.Filter.StatusUndev, "undev", false, "")
-	flag.BoolVar(&conf.Filter.StatusDev, "dev", false, "")
-	flag.BoolVar(&conf.Filter.StatusLab, "lab", false, "")
-	flag.BoolVar(&conf.Filter.StatusScanned, "scanned", false, "")
-	flag.BoolVar(&conf.Filter.StatusUnscanned, "unscanned", false, "")
-	flag.BoolVar(&conf.Filter.StatusLoaded, "loaded", false, "")
-	flag.BoolVar(&conf.Filter.StatusUnloaded, "unloaded", false, "")
-	flag.BoolVar(&conf.Filter.StockColor, "color", false, "")
-	flag.BoolVar(&conf.Filter.StockBW, "bw", false, "")
-	flag.BoolVar(&conf.Filter.StockPos, "pos", false, "")
-	flag.BoolVar(&conf.Filter.StockNeg, "neg", false, "")
-	flag.BoolVar(&conf.Filter.StockAvailable, "available", false, "")
-
-	flag.StringVar(&conf.Filter.Since, "since", "", "")
-	flag.StringVar(&conf.Filter.Until, "until", "", "")
-
-	flag.StringVar(&conf.Filter.SinceLabIn, "since-lab-in", "", "")
-	flag.StringVar(&conf.Filter.UntilLabIn, "until-lab-in", "", "")
-
-	flag.StringVar(&conf.Filter.SinceLabOut, "since-lab-out", "", "")
-	flag.StringVar(&conf.Filter.UntilLabOut, "until-lab-out", "", "")
+	db.DefineFilterFlags(&conf.Filter, flag.CommandLine)
 
 	flag.Usage = func() { usage(os.Stderr) }
 	flag.Parse()
