@@ -24,7 +24,7 @@ Company [company-id]
 
 Film stock
 ```
-Stock [stock-id]
+Stock [stock-id] [optional-hash-id]
     [format]
     [name]
     [company-id]
@@ -34,9 +34,11 @@ Stock [stock-id]
 
 Camera
 ```
-Camera [camera-id]
+Camera [camera-id] [optional-hash-id]
     [brand]
     [model]
+    [description]
+    [serial-number]
 ```
 
 Development lab

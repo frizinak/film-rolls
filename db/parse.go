@@ -19,7 +19,7 @@ import (
 const dateFormat = "2006-01-02"
 
 func mk() *DB {
-	return &DB{
+	db := &DB{
 		Entries: make([]Entry, 0),
 
 		Companies: make(map[ID]*Company, 0),
@@ -28,6 +28,11 @@ func mk() *DB {
 		Labs:      make(map[ID]*Lab, 0),
 		Stores:    make(map[ID]*Store, 0),
 	}
+
+	db.uniq.cameraHash = make(map[ID]struct{})
+	db.uniq.stockHash = make(map[ID]struct{})
+
+	return db
 }
 
 func ParseDir(dir string, cb func(db *DB, file string) (bool, error)) (*DB, error) {
@@ -284,6 +289,10 @@ func (db *DB) Parse(file string, r io.Reader) error {
 				c.Brand = t
 			} else if c.Model == "" {
 				c.Model = t
+			} else if c.Description == "" {
+				c.Description = t
+			} else if c.SN == "" {
+				c.SN = SN(t)
 				keyword = keywordNone
 			}
 			continue
@@ -418,7 +427,7 @@ func (db *DB) Parse(file string, r io.Reader) error {
 			continue
 		}
 
-		if len(p) != 2 {
+		if len(p) < 2 || len(p) > 3 {
 			return fmt.Errorf("invalid line %d: '%s'", line, t)
 		}
 
@@ -426,6 +435,17 @@ func (db *DB) Parse(file string, r io.Reader) error {
 		id, err := MkID(p[1])
 		if err != nil {
 			return err
+		}
+
+		var hashID ID = id
+		if len(p) == 3 {
+			if keyword != keywordCamera && keyword != keywordStock {
+				return fmt.Errorf("invalid line %d: '%s': this type of entry does not support hash ids", line, t)
+			}
+			hashID, err = MkID(p[2])
+			if err != nil {
+				return err
+			}
 		}
 
 		lastID = id
@@ -442,12 +462,20 @@ func (db *DB) Parse(file string, r io.Reader) error {
 			if strings.Contains(string(id), "@") {
 				return fmt.Errorf("stock id contains reserved character '@'")
 			}
-			db.Stocks[id] = &Stock{ID: id}
+			if _, ok := db.uniq.stockHash[hashID]; hashID != "" && ok {
+				return fmt.Errorf("duplicate stock hash id '%s'", hashID.String())
+			}
+			db.uniq.stockHash[hashID] = struct{}{}
+			db.Stocks[id] = &Stock{ID: id, HashID: hashID}
 		case keywordCamera:
 			if _, ok := db.Cameras[id]; ok {
 				return fmt.Errorf("duplicate camera id '%s'", id.String())
 			}
-			db.Cameras[id] = &Camera{ID: id}
+			if _, ok := db.uniq.cameraHash[hashID]; hashID != "" && ok {
+				return fmt.Errorf("duplicate camera hash id '%s'", hashID.String())
+			}
+			db.uniq.cameraHash[hashID] = struct{}{}
+			db.Cameras[id] = &Camera{ID: id, HashID: hashID}
 		case keywordLab:
 			if _, ok := db.Labs[id]; ok {
 				return fmt.Errorf("duplicate lab id '%s'", id.String())

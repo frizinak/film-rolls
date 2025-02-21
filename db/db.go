@@ -58,6 +58,7 @@ const (
 
 type Stock struct {
 	ID      ID
+	HashID  ID
 	Company *Company
 	Name    string
 	ISO     ISO
@@ -108,17 +109,31 @@ func ID0() ID { return "" }
 
 func (id ID) String() string { return string(id) }
 
+type SN string
+
+func (sn SN) String() string { return string(sn) }
+
 type Camera struct {
-	ID    ID
-	Brand string
-	Model string
+	ID          ID
+	HashID      ID
+	SN          SN
+	Brand       string
+	Model       string
+	Description string
 }
 
 func (c *Camera) IDString() string {
 	if c == nil {
 		return ""
 	}
-	return string(c.ID)
+	return c.ID.String()
+}
+
+func (c *Camera) SNString() string {
+	if c == nil {
+		return ""
+	}
+	return c.SN.String()
 }
 
 func (c *Camera) Short() string {
@@ -208,8 +223,8 @@ func (e Entry) ID(i int) (string, bool) {
 		h,
 		"%s\n[%s]\n[%s]\n",
 		e.LoadDate.Format(dateFormat),
-		string(e.Camera.ID),
-		string(e.Stock.ID),
+		string(e.Camera.HashID),
+		string(e.Stock.HashID),
 	)
 	if i != 0 {
 		fmt.Fprintln(h, i)
@@ -270,6 +285,11 @@ type DB struct {
 	Cameras   map[ID]*Camera
 	Labs      map[ID]*Lab
 	Stores    map[ID]*Store
+
+	uniq struct {
+		stockHash  map[ID]struct{}
+		cameraHash map[ID]struct{}
+	}
 }
 
 func (db *DB) Row(filter Filter, row func(e Entry)) {
