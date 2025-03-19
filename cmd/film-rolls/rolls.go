@@ -268,7 +268,7 @@ func main() {
 
 	case modeTags:
 		run = func(db *db.DB) {
-			db.PrintTags(os.Stdout, conf.Filter)
+			db.PrintTags(os.Stdout, conf.Labels, conf.Filter)
 		}
 
 	case modeIDs:

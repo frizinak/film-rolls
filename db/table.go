@@ -453,13 +453,15 @@ func (db *DB) PrintRolls(w io.Writer, conf TableConfig) {
 	t.WriteTo(w, "")
 }
 
-func (db *DB) PrintTags(w io.Writer, filter Filter) {
+func (db *DB) PrintTags(w io.Writer, labels bool, filter Filter) {
 	r := strings.NewReplacer(" ", "_")
 	clean := func(str string) string {
 		return strings.ToLower(r.Replace(str))
 	}
 
-	list := make([]string, 0, 6)
+	const tagLabel = "tags"
+	list := make([]string, 0, 8)
+	lbls := make([]string, 0, 1)
 	db.Row(filter, func(e Entry) {
 		list = list[:0]
 		list = append(list, fmt.Sprintf("id:%s", e.State.ID))
@@ -476,8 +478,24 @@ func (db *DB) PrintTags(w io.Writer, filter Filter) {
 			list = append(list, fmt.Sprintf("scan:%03d", e.Scan))
 		}
 
+		if labels {
+			for typ, l := range e.Labels {
+				if typ == tagLabel {
+					continue
+				}
+				lbls = lbls[:len(l)]
+				for i := range l {
+					lbls[i] = clean(l[i])
+				}
+				list = append(
+					list,
+					fmt.Sprintf("%s:%s", typ, strings.Join(lbls, ",")),
+				)
+			}
+		}
+
 		tags := make(map[string]struct{}, 0)
-		for _, t := range e.Labels["tags"] {
+		for _, t := range e.Labels[tagLabel] {
 			l := strings.FieldsFunc(t, func(r rune) bool {
 				return r == ' ' || r == ','
 			})
